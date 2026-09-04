@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using FamilyBudget.Models;
 
 namespace FamilyBudget.Data;
 
-public class FamilyBudgetDbContext : DbContext
+public class FamilyBudgetDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>, int>
 {
     public FamilyBudgetDbContext(DbContextOptions<FamilyBudgetDbContext> options)
         : base(options)
@@ -11,7 +13,6 @@ public class FamilyBudgetDbContext : DbContext
     }
 
     public DbSet<FamilyGroup> FamilyGroups => Set<FamilyGroup>();
-    public DbSet<User> Users => Set<User>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<Store> Stores => Set<Store>();
@@ -19,6 +20,8 @@ public class FamilyBudgetDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
         modelBuilder.Entity<Category>()
             .HasOne(c => c.ParentCategory)
             .WithMany(c => c.ChildCategories)
