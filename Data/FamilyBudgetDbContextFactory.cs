@@ -11,6 +11,7 @@ public class FamilyBudgetDbContextFactory : IDesignTimeDbContextFactory<FamilyBu
         var configuration = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.Development.json")
+            .AddEnvironmentVariables()
             .Build();
 
         var optionsBuilder = new DbContextOptionsBuilder<FamilyBudgetDbContext>();
