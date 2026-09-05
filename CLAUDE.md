@@ -5,9 +5,9 @@
 Learning project: deepen C# / ASP.NET Core / EF Core / PostgreSQL skills through building a real, deployed web app for tracking family expenses. The learning goal matters as much as the working product — the developer (owner of this repo) wants to understand and write the core business logic herself; Claude Code is used for scaffolding, mechanical/repetitive work, debugging assistance, and validation (running builds/tests), not for writing the conceptual/business-logic code end-to-end on her behalf unless explicitly asked.
 
 Full specification, phased plan, and DB schema are in:
-@TZ_semeynyi_budget_en.md
-@PLAN_semeynyi_budget_en.md
-@DB_SCHEMA_semeynyi_budget_en.md
+@TZ_semeynyi_budget.md
+@PLAN_semeynyi_budget.md
+@DB_SCHEMA_semeynyi_budget.md
 
 ## Tech Stack
 
@@ -32,6 +32,7 @@ Full specification, phased plan, and DB schema are in:
 8. **`FamilyBudgetDbContextFactory`** (`Data/FamilyBudgetDbContextFactory.cs`) is a separate `IDesignTimeDbContextFactory<FamilyBudgetDbContext>` used only by `dotnet ef` CLI tooling at design time — it is not part of the app's runtime DI. It reads `appsettings.Development.json` plus environment variables (env vars override the file), which is how migrations get pointed at Neon instead of local Postgres (see Neon section below).
 9. **Currency**: MVP uses EUR only, but every `Purchase` has an explicit `Currency` column (not hardcoded) to leave room for future multi-currency support.
 10. **All money fields are `decimal`, never `float`/`double`.** Dates on `Purchase` use `DateOnly`, not `DateTime`.
+11. **Email sender registration must use fully-qualified type names.** `Areas/Identity/Pages/Account/Register.cshtml.cs` requires `Microsoft.AspNetCore.Identity.UI.Services.IEmailSender` in DI (needed even with `RequireConfirmedAccount = false`, since it's a constructor dependency regardless). There is a second, unrelated generic `IEmailSender<TUser>` elsewhere in the `Microsoft.AspNetCore.Identity` namespace (already `using`'d in `Program.cs` for `AddIdentity`/`IdentityRole`), which causes the compiler to pick the wrong one if you register `IEmailSender` as a bare name. Register it fully qualified instead: `builder.Services.AddSingleton<Microsoft.AspNetCore.Identity.UI.Services.IEmailSender, Microsoft.AspNetCore.Identity.UI.Services.NoOpEmailSender>();` — note `NoOpEmailSender` is a ready-made do-nothing implementation Microsoft already ships in that namespace; no need to hand-write one.
 
 ## Neon connection strings — direct vs pooled
 
@@ -66,10 +67,24 @@ See `NOTES.md` in the repo root for the fuller, evolving list of utility command
 - Render auto-deploys only from `main`, so `main` must always stay in a working/deployable state.
 - After merge: `git checkout main && git pull`, then branch again from there.
 
-## Current status (update this section as stages complete)
+## Current status (update this section only after verifying the actual file content — see note below)
 
-Completed: Stage 0 (tooling), Stage 1 (Hello World skeleton + CI/CD + Render deploy), Stage 2 (DB schema design), Stage 3 (EF Core models/DbContext/first migration), Stage 4 (Neon connected to Render).
+Completed: Этап 0 (tooling), Этап 1 (Hello World skeleton + CI/CD + Render deploy), Этап 2 (DB schema design), Этап 3 (EF Core models/DbContext/first migration), Этап 4 (Neon connected to Render).
 
-In progress — Stage 5 (Authentication + family groups): `ApplicationUser`/`IdentityDbContext` migrated and applied (local + Neon). Identity scaffolded via `dotnet aspnet-codegenerator identity` (Login/Register/Logout only, as Razor Pages under `Areas/Identity/Pages/Account`). `Program.cs` updated (`AddIdentity`, `AddRazorPages`/`MapRazorPages`, `UseAuthentication`/`UseAuthorization`, `AddCascadingAuthenticationState`). Fixed a broken `Layout` path in `_ViewStart.cshtml` (generator assumed classic Razor Pages folder structure, not Blazor Web App's `Components/Layout`) and added a minimal `Areas/Identity/Pages/Shared/_Layout.cshtml`. Not yet verified end-to-end (register → login → logout flow untested as of this writing). Family group creation/joining screens not started. Google OAuth not started.
+In progress — Этап 5 (Authentication + family groups): `ApplicationUser`/`IdentityDbContext` migrated and applied (local + Neon). Identity scaffolded via `dotnet aspnet-codegenerator identity` (Login/Register/Logout only, as Razor Pages under `Areas/Identity/Pages/Account`).
 
-Not started: Stage 6 (purchase tracking UI), Stage 7 (reports), Stage 8 (end-to-end deployed run-through), Stage 9 (Cowork CSV import), Stage 10 (tests).
+`Program.cs` has been **verified fixed** (read directly, not assumed): `using FamilyBudget.Models;` added, `AddDefaultIdentity` replaced with `AddIdentity<ApplicationUser, IdentityRole<int>>(...).AddEntityFrameworkStores<FamilyBudgetDbContext>().AddDefaultTokenProviders()` with `RequireConfirmedAccount = false`, `AddRazorPages()`/`MapRazorPages()` added, `UseAuthentication()`/`UseAuthorization()` added in the correct order, `AddCascadingAuthenticationState()` added, and the `IEmailSender` registration from Architecture Decision #11 added.
+
+**Layout fix verified done**: `_Layout.cshtml`, `_LoginPartial.cshtml`, and `_ValidationScriptsPartial.cshtml` moved from the root `Pages/Shared/` into `Areas/Identity/Pages/Shared/`; `Areas/Identity/Pages/_ViewStart.cshtml` now says `Layout = "_Layout";`; the orphaned root `Pages/` folder was deleted entirely; the `_LoginPartial.cshtml` link to the never-scaffolded `/Account/Manage/Index` was replaced with a plain (non-link) greeting. `dotnet build` succeeds with 0 errors (only the pre-existing low-severity `NU1901` NuGet advisory warnings, unrelated to this work).
+
+**Confirmed by directly opening in the browser**: `/Identity/Account/Login` and `/Identity/Account/Register` both render correctly (unstyled — see cosmetic issue below — but functional, no 404/500).
+
+Known cosmetic issue (not blocking): the layout references `~/Identity/lib/bootstrap/...` and other static asset paths that don't exist in this project's `wwwroot` — forms render unstyled. Deferred to later.
+
+**Not yet done, and intentionally not delegated to Claude Code**: no code anywhere creates a `FamilyGroup` when a user registers. `ApplicationUser.FamilyGroupId` is a non-nullable FK with no default, so as written, every registration attempt fails with a foreign-key violation (confirmed: this is the actual, current failure mode when submitting the Register form, not a hypothetical). Per Architecture Decision #1 / spec 2.2, a "personal group of one" must be created automatically at registration. This is core business logic and is being written by the developer herself, not scaffolded or generated — do not implement this without being explicitly asked to.
+
+Not yet verified end-to-end (register → login → logout flow still blocked on the `FamilyGroup`-at-registration gap above). Family group creation/joining screens not started. Google OAuth not started.
+
+**Lesson learned the hard way**: earlier versions of this file described several of the above fixes as "done" based on what was discussed in a mentoring conversation, before the actual file changes were confirmed saved. They turned out not to have been applied at all. Do not update this section based on what was *discussed* or *planned* — only after directly reading the file and confirming the change is actually present on disk.
+
+Not started: Этап 6 (purchase tracking UI), Этап 7 (reports), Этап 8 (end-to-end deployed run-through), Этап 9 (Cowork CSV import), Этап 10 (tests).
