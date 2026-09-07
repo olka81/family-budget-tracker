@@ -13,6 +13,7 @@
 - Новая миграция: `dotnet ef migrations add ИмяМиграции`
 - Откатить и удалить последнюю (если уже применена): `dotnet ef migrations remove --force`
 - Применить к базе: `dotnet ef database update`
+- Добавление составного `HasIndex(...).IsUnique()` по полю, у которого уже был одиночный auto-индекс (например, по FK) — EF Core сам сгенерирует миграцию, которая дропнет старый одиночный индекс и создаст новый составной (это нормально, не ошибка — составной индекс и так покрывает поиск по первому полю)
 - По умолчанию применяется к локальной базе (из `appsettings.Development.json`). Чтобы применить к Neon — временно задать переменную окружения **в этом же окне терминала** перед командой:
   - PowerShell: `$env:ConnectionStrings__DefaultConnection="..."`
   - cmd: `set ConnectionStrings__DefaultConnection=...`
