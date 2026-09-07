@@ -51,5 +51,9 @@ public class FamilyBudgetDbContext : IdentityDbContext<ApplicationUser, Identity
             .WithMany()
             .HasForeignKey(p => p.UserId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Product>()
+            .HasIndex(p => new { p.FamilyGroupId, p.Name })
+            .IsUnique();
     }
 }
