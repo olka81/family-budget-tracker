@@ -25,6 +25,28 @@
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
             </NavLink>
         </div>
+
+        <AuthorizeView>
+            <Authorized>
+                <div class="nav-item px-3">
+                    <span class="nav-link">Hello, @context.User.Identity?.Name!</span>
+                </div>
+                <div class="nav-item px-3">
+                    <form action="Identity/Account/Logout" method="post">
+                        <AntiforgeryToken />
+                        <input type="hidden" name="ReturnUrl" value="/" />
+                        <button type="submit" class="nav-link btn btn-link">Logout</button>
+                    </form>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="nav-item px-3">
+                    <a class="nav-link" href="Identity/Account/Register">Register</a>
+                </div>
+                <div class="nav-item px-3">
+                    <a class="nav-link" href="Identity/Account/Login">Login</a>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
     </nav>
 </div>
-

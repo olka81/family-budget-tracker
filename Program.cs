@@ -21,6 +21,13 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<int>>(options =>
     .AddEntityFrameworkStores<FamilyBudgetDbContext>()
     .AddDefaultTokenProviders();
 
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/Identity/Account/Login";
+    options.LogoutPath = "/Identity/Account/Logout";
+    options.AccessDeniedPath = "/Identity/Account/Login";
+});
+
 builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.AddSingleton<Microsoft.AspNetCore.Identity.UI.Services.IEmailSender, Microsoft.AspNetCore.Identity.UI.Services.NoOpEmailSender>();

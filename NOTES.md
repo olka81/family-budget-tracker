@@ -52,3 +52,17 @@
 - Генератор `dotnet aspnet-codegenerator identity` пишет `Layout = "/Pages/Shared/_Layout.cshtml"` в `_ViewStart.cshtml` — это путь для классического Razor Pages проекта, у нас такой папки нет (мы Blazor Web App). Нужно поправить на `Layout = "_Layout";` и создать свой `Areas/Identity/Pages/Shared/_Layout.cshtml`
 - `Register.cshtml.cs` требует `IEmailSender` в DI, даже при `RequireConfirmedAccount = false` — это просто зависимость в конструкторе, не связанная напрямую с этой настройкой. В `Microsoft.AspNetCore.Identity` (уже подключён через `using` ради `AddIdentity`) неожиданно есть **другой**, generic `IEmailSender<TUser>` — если регистрировать просто `IEmailSender` без явного namespace, легко попасть не в тот тип. Регистрировать нужно с полным путём: `builder.Services.AddSingleton<Microsoft.AspNetCore.Identity.UI.Services.IEmailSender, Microsoft.AspNetCore.Identity.UI.Services.NoOpEmailSender>();` — `NoOpEmailSender` уже есть готовый у Microsoft, свой писать не нужно
 - `Login.cshtml.cs` (сгенерированный, нетронутый) ссылается на `LoginWith2fa`/`Lockout` страницы, которых у нас нет (генерировали только Login/Register/Logout). Сейчас это мёртвый код — 2FA нигде не включена, а `PasswordSignInAsync` в этом месте вызывается с `lockoutOnFailure: false`. Но `IdentityOptions.Lockout` при этом остаётся на дефолтах ASP.NET Core (5 неудачных попыток → блокировка), и `PasswordSignInAsync` всё равно проверяет **уже существующую** блокировку перед паролем, независимо от `lockoutOnFailure`. То есть если аккаунт когда-нибудь окажется заблокирован каким-то другим путём — при попытке входа получите 404 вместо вменяемого сообщения о блокировке. Не критично сейчас, но учесть, если будете подключать lockout/2FA
+
+## Identity в основном Blazor-приложении (не в Identity Area)
+- `Components/Routes.razor`: `<RouteView>` → `<AuthorizeRouteView>` — без этого `[Authorize]` на страницах просто игнорируется. Требует `@using Microsoft.AspNetCore.Components.Authorization` (обычно в `_Imports.razor`) — без него Razor не распознаёт `AuthorizeRouteView` как компонент (warning RZ10012) и тихо рендерит пустую страницу, без явной ошибки в консоли браузера
+- Два **разных** namespace с похожими именами — та же ловушка, что и с `IEmailSender`, но теперь про Authorization: `Microsoft.AspNetCore.Components.Authorization` (компоненты `AuthorizeView`/`AuthorizeRouteView`/`AntiforgeryToken`) и `Microsoft.AspNetCore.Authorization` (сам атрибут `[Authorize]`, класс `AuthorizeAttribute`) — нужны **оба** `using`, обычно оба в `_Imports.razor`
+- Форма логаута внутри Blazor-компонента (`NavMenu.razor`) — не то же самое, что `_LoginPartial.cshtml` в Identity Area (там `asp-page`, там Razor Pages). Здесь — обычный HTML `<form action="Identity/Account/Logout" method="post">` + встроенный компонент `<AntiforgeryToken />` внутри формы (не нужно вручную городить токен)
+- **`ConfigureApplicationCookie` обязателен после `AddIdentity(...)`**, иначе редирект неавторизованного пользователя ведёт на дефолтный `/Account/Login` (старая MVC-конвенция), которого в проекте нет (у нас `/Identity/Account/Login`, Area) — вместо страницы логина получаем 404 через `Router.NotFoundPage`. Нужно:
+  ```csharp
+  builder.Services.ConfigureApplicationCookie(options =>
+  {
+      options.LoginPath = "/Identity/Account/Login";
+      options.LogoutPath = "/Identity/Account/Logout";
+      options.AccessDeniedPath = "/Identity/Account/Login";
+  });
+  ```
