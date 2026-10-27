@@ -9,6 +9,7 @@ Output of the Stage 2 discussion from the plan. The schema is conceptual (entiti
 - **Purchase date is required**, defaulting to the current date at the time of entry.
 - **No abstract buyers**: a purchase can only be attributed to a real user who is a member of the same group. The default is whoever enters the record.
 - **One user = exactly one group** (this closes the open question from the spec about multi-group membership — membership in only one group at a time, not several simultaneously).
+- **Group invitation is a single permanent link per group**, which can be regenerated. There is no separate “create a group” screen: a personal group is created on registration, and leaving a group creates a new personal “My Family”.
 
 ## Tables
 
@@ -18,6 +19,8 @@ Output of the Stage 2 discussion from the plan. The schema is conceptual (entiti
 | Id | PK | |
 | Name | text | |
 | CreatedAt | timestamp | |
+
+**Planned (Stage 5)**: an invitation-token field plus a unique index on it. The field name, type, and token generation method are not yet chosen.
 
 ### ApplicationUser
 **Update from Stage 5:** replaces the previous hand-rolled `User`. Inherits from `IdentityUser<int>` (provides ready-made `Email`, `PasswordHash`, and an external-login mechanism via `UserLogins` — Google sign-in is no longer a hand-rolled `GoogleId` field, but a standard Identity scenario).
@@ -88,9 +91,10 @@ Plus the service tables that Identity adds automatically via `IdentityDbContext<
 
 1. **Protection against cycles in the category hierarchy** (A → B → A). When changing ParentCategoryId, you need to check that the new parent's ancestors don't include the category itself — there's no simple SQL CHECK for arbitrary depth.
 2. **UserId on Purchase must belong to the same FamilyGroupId** as the purchase itself — a plain FK doesn't enforce this, it needs validation in code on save.
+3. **Joining another group:** allowed only if the user is the sole member of their current group. Order: first move the user to the new group (change FamilyGroupId), then delete the old personal group together with its data. The reverse order is not possible: the user’s FK to the group is cascading, so deleting the group would delete the user.
 
 ## Open Questions Left for Later (don't block Stage 3)
 
-- Format of the group invitation (code, link, email) — from the spec, not yet decided.
+- Not verified: whether cascade-deleting a group with its data runs into the Restrict relationships (Purchase→Product, Purchase→User).
 - Exact CSV format for import via Cowork — now that the schema exists, this can be decided (Stage 9 per the plan).
 - Duplicate-detection logic on import — also Stage 9.

@@ -12,8 +12,11 @@ The primary goal is educational: deepen C# skills (ASP.NET Core, EF Core) and re
 - *Note:* both options are supported out of the box by ASP.NET Core Identity + an external provider, at no additional cost (a Google OAuth client is created for free in Google Cloud Console).
 
 ### 2.2. Family Groups
-- A user can create a family group.
-- A user can join an existing group (by invitation/code).
+- There is no separate “create a group” screen: a group is created automatically on registration (a personal group, see below).
+- A user can join an existing group via an invitation link. Each group has a single permanent link, which can be regenerated.
+- A user can join another group only if they are the sole member of their current group. That personal group is deleted on joining, together with all of its data; the UI warns about this before joining.
+- If the current group has other members, the user must leave it first.
+On leaving a group, a new personal group “My Family” is created for the user.
 - **Member rights: all group members are equal** — any member can add, view, and edit all of the group's purchases. There is no admin/regular-member split in the MVP.
 - **A user without a family:** upon registration, a "personal" group of one is automatically created for the user — there is no separate "no group" mode in the system. This simplifies the data model: purchases are always tied to a group rather than sometimes directly to a user, and moving from solo use to family use is simply inviting a second member into the already-existing group, with no data migration.
 - **One user = exactly one group** — membership in multiple groups at once is not supported (decided at the schema design stage).
@@ -65,5 +68,4 @@ MVP priority — one report, the rest goes to the backlog:
 
 - Exact DB table structure, field types, indexes — a separate step in the plan.
 - Exact CSV format for import (columns, category-path encoding) — depends on the DB structure, to be decided right after it.
-- Format of the group invitation (code, link, email invite).
 - Duplicate-detection logic when importing from Cowork.
