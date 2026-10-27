@@ -76,9 +76,9 @@ Moved up deliberately: without this step, any feature that touches the DB would 
 
 **Second architectural detail (also found in advance):** Login/Register/Logout can't be regular interactive Blazor components (`--interactivity Server`) — Identity sets the auth cookie via the HTTP response, and by the time an interactive component "comes alive," response headers have already been sent. The solution — a documented Microsoft pattern: these 2-3 pages are built as static SSR Razor pages (as in the `dotnet new blazor -au Individual` template), while the rest of the app stays Interactive Server as originally planned.
 
-1. Recreate the migration for the new model (`ApplicationUser`, `IdentityDbContext`).
-2. ASP.NET Core Identity with email/password — Login/Register/Logout as static SSR pages (see above), with no external dependencies, so as not to be blocked on setting up Google.
-3. Screens for creating a family group and joining an existing one.
+1. Recreate the migration for the new model (`ApplicationUser`, `IdentityDbContext`). ✅
+2. ASP.NET Core Identity with email/password — Login/Register/Logout as static SSR pages (see above), with no external dependencies, so as not to be blocked on setting up Google. ✅
+3. Group screens via invitation link: a group page (link, regeneration, leaving the group) and a protected join page (with ReturnUrl). There is no separate “create a group” screen — a personal group is created on registration (already done). Join/leave rules — see the spec 2.2 and DB_SCHEMA.
 4. As a separate sub-step — add Google OAuth on top of the already-working Identity authentication (registering an OAuth client in Google Cloud Console; technically this is the built-in `UserLogins` table, not a hand-rolled field).
 
 ## Stage 6. Purchase Tracking
@@ -93,7 +93,7 @@ Moved up deliberately: without this step, any feature that touches the DB would 
 
 ## Stage 8. End-to-End Run on the "Live" Deployment
 
-1. A full end-to-end run on the deployed version: registration → creating a group → adding a purchase → viewing a report.
+1. A full end-to-end run on the deployed version: registration (a personal group is created automatically) → adding a purchase → viewing a report.
 
 ## Stage 9. Import via Claude Cowork
 

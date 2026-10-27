@@ -66,3 +66,25 @@
       options.AccessDeniedPath = "/Identity/Account/Login";
   });
   ```
+
+## Render — прокси и HTTPS
+- Render завершает HTTPS на своём прокси, а в приложение запрос приходит по HTTP. Симптом без настройки: Mixed Content в консоли браузера и сломанные редиректы (в том числе на логин)
+- Лечится `UseForwardedHeaders` — **первым** middleware в конвейере, сразу после `builder.Build()`, с очищенными `KnownIPNetworks` и `KnownProxies` (иначе заголовки от прокси Render игнорируются):
+  ```csharp
+  var forwardedHeadersOptions = new ForwardedHeadersOptions
+  {
+      ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+  };
+  forwardedHeadersOptions.KnownIPNetworks.Clear();
+  forwardedHeadersOptions.KnownProxies.Clear();
+  app.UseForwardedHeaders(forwardedHeadersOptions);
+  ```
+- Что проверять на проде после изменений в Identity: cookie помечена Secure, редирект неавторизованного на логин с `ReturnUrl`, откат при повторной регистрации (группа-сирота не появляется)
+
+## Группы и приглашения (решения, код ещё не написан)
+- Одна постоянная ссылка-приглашение на группу, с перегенерацией. Отдельного экрана создания группы нет
+- Вступление — только если пользователь единственный в своей группе; его личная группа удаляется вместе с данными (с предупреждением в UI)
+- Порядок важен: сначала перенести пользователя в новую группу, потом удалять старую — FK пользователя на группу каскадный, иначе удалится сам пользователь
+- Выход из группы создаёт новую личную «My Family»
+- **Не проверено**: не упрётся ли каскадное удаление группы в `Restrict`-связи (Purchase→Product, Purchase→User)
+- Подробно: ТЗ 2.2, DB_SCHEMA, CLAUDE.md (Architecture Decision #14)
