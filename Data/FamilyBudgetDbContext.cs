@@ -55,5 +55,9 @@ public class FamilyBudgetDbContext : IdentityDbContext<ApplicationUser, Identity
         modelBuilder.Entity<Product>()
             .HasIndex(p => new { p.FamilyGroupId, p.Name })
             .IsUnique();
+
+        modelBuilder.Entity<FamilyGroup>()
+            .HasIndex(g => g.InviteToken)
+            .IsUnique();
     }
 }
