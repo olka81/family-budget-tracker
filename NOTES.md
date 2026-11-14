@@ -26,6 +26,7 @@
 - Для pooled-строки дополнительно добавить `No Reset On Close=true` (из-за PgBouncer в режиме transaction pooling)
 - Полностью снести схему, если нужно пересоздать миграции с нуля: `DROP SCHEMA public CASCADE; CREATE SCHEMA public;` в SQL Editor
 - SQL Editor теперь спрятан внутри свёрнутого пункта "Postgres database" в левом меню Neon (не отдельный пункт, как раньше)
+- Никогда не запускать Claude Code из терминала, где задана `ConnectionStrings__DefaultConnection` (Neon) — агент унаследует эту переменную. Для миграций — отдельный терминал, для Claude Code — отдельный
 
 ## Render
 - Переменные окружения — вкладка Environment у конкретного сервиса (не на уровне Project!)
@@ -37,6 +38,10 @@
 ## Git-процесс
 - Перед началом новой работы — всегда новая ветка: `git checkout -b feature/имя` + `git push -u origin feature/имя`
 - После мёржа PR: `git checkout main` && `git pull`, и уже от обновлённого main — следующая ветка
+- Ветка по умолчанию `main` защищена GitHub ruleset — изменения попадают в `main` только через pull request
+- Прямой push в main отклоняется с ошибкой: `GH013: Repository rule violations found for refs/heads/main` / `Changes must be made through a pull request.`
+- VS Code при этом показывает только общий диалог "Can't push refs to remote. Try running "Pull" first". Pull делать **не** нужно — нажать "Show Command Output", чтобы увидеть настоящую причину
+- Если коммит случайно сделан в локальном main: проверить `git log --oneline origin/main..main`; если там только ненужные коммиты и `git status` чистый — выполнить `git reset --hard origin/main`
 
 ## Проверка Identity — очистка и верификация локальной БД
 - Очистить таблицы пользователей/групп целиком: `docker exec -it familybudget-db psql -U postgres -d familybudget -c "TRUNCATE TABLE \"AspNetUsers\", \"FamilyGroups\" CASCADE;"`
@@ -88,3 +93,8 @@
 - Выход из группы создаёт новую личную «My Family»
 - **Не проверено**: не упрётся ли каскадное удаление группы в `Restrict`-связи (Purchase→Product, Purchase→User)
 - Подробно: ТЗ 2.2, DB_SCHEMA, CLAUDE.md (Architecture Decision #14)
+
+## Claude Code — файлы с правами (permissions)
+- `.claude/settings.json` — общие правила прав (allow / deny), закоммичен в репозиторий; меняется только через PR. Правила deny побеждают allow на любом уровне настроек. Агенту запрещено редактировать `.claude/**`, поэтому эти файлы правятся вручную
+- `.claude/settings.local.json` — личные правила (накапливаются при ответе "don't ask again" в Claude Code). Его **нет** в `.gitignore` репозитория — он игнорируется только глобальным git ignore-файлом `C:\Users\Asus\.config\git\ignore` на Windows-машине. Проверить: `git check-ignore -v .claude/settings.local.json`
+- Посмотреть действующие правила в Claude Code: `/permissions`
