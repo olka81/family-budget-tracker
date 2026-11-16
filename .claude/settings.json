@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(dotnet build *)",
+      "Bash(dotnet test *)",
+      "Bash(git push -u origin *)"
+    ],
+    "deny": [
+      "Bash(git reset --hard *)",
+      "Bash(git clean *)",
+      "Bash(git branch -D *)",
+      "Bash(git push * main)",
+      "Bash(git push *--force*)",
+      "Bash(git push * -f*)",
+      "Bash(git push *--delete*)",
+      "Edit(/.claude/**)",
+      "Edit(/Migrations/**)"
+    ]
+  }
+}

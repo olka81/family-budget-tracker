@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Learning project: deepen C# / ASP.NET Core / EF Core / PostgreSQL skills through building a real, deployed web app for tracking family expenses. The learning goal matters as much as the working product — the developer (owner of this repo) wants to understand and write the core business logic herself; Claude Code is used for scaffolding, mechanical/repetitive work, debugging assistance, and validation (running builds/tests), not for writing the conceptual/business-logic code end-to-end on her behalf unless explicitly asked.
+Learning project: deepen C# / ASP.NET Core / EF Core / PostgreSQL skills through building a real, deployed web app for tracking family expenses. The learning goal matters as much as the working product — the developer (owner of this repo) owns the specs, architecture decisions, plan approval, code review and merging. Feature implementation, including business logic, may be delegated to Claude Code through the `/feature` skill with a spec file the developer has prepared; the developer approves the plan before any code is written. Outside `/feature`, Claude Code is used for scaffolding, mechanical/repetitive work, debugging assistance and validation (running builds/tests), and does not write business logic unless explicitly asked.
 
 Full specification, phased plan, and DB schema are in:
 @TZ_semeynyi_budget.md
