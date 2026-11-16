@@ -17,16 +17,19 @@ If the file does not exist or any section is missing, STOP and report what is mi
 ## 1. Preflight and branch
 
 1. `git status` — if the working tree is not clean, STOP and report.
-2. `git checkout main`, `git pull`.
-3. `git checkout -b <branch name from the spec>`.
+2. Check whether the branch from the spec already exists, locally or on `origin` (`git branch --list <branch>`, `git ls-remote --heads origin <branch>`).
+3. **New branch:** `git checkout main`, `git pull`, `git checkout -b <branch>`.
+4. **Existing branch** (continuing unfinished work): `git checkout <branch>`, and `git pull` if it tracks `origin`. Do NOT reset, rebase or recreate it. Check whether it is behind `main` (`git log --oneline HEAD..main`); if it is, report this in the plan and ask whether to merge `main` — do not merge on your own.
 
 ## 2. Study
 
 Read `CLAUDE.md` (especially the Architecture Decisions), then the parts of the spec documents (TZ, DB_SCHEMA, PLAN) and the code that the feature touches.
+On an existing branch, also study what is already done there: `git log --oneline main..HEAD` and `git diff main...HEAD`.
 
 ## 3. Plan — STOP and wait for approval
 
 Show Olga a plan:
+- on an existing branch: what is already done there and what is left;
 - files to create and to modify, and what changes in each;
 - whether the database schema changes (a migration is needed) — yes or no, and why;
 - how each acceptance criterion will be met;
