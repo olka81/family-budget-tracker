@@ -103,6 +103,8 @@ Moved up deliberately: without this step, any feature that touches the DB would 
 
 ## Stage 10. Tests
 
+**Done ahead of schedule (November 2026, before Stage 6):** items 1 and 3 — the test project `tests/FamilyBudget.Tests` (xUnit + Testcontainers) and the test step in CI; the first 15 tests cover `FamilyGroupService`. Reason for moving it up: the code is now written by an AI agent, and tests are the main safety net. New features with business logic come with tests right away. Item 2 remains for this stage.
+
 1. xUnit + Testcontainers (spins up a real Postgres in a container for the duration of the tests).
 2. Coverage priority: business logic — report calculations, duplicate-detection logic on import.
 3. Add a "run tests" step to the existing CI workflow from Stage 1.

@@ -17,8 +17,8 @@ Full specification, phased plan, and DB schema are in:
 - **Database**: PostgreSQL — local via Docker for development, Neon (serverless Postgres, Frankfurt region) for production
 - **Auth**: ASP.NET Core Identity (`ApplicationUser : IdentityUser<int>`), email/password first, Google OAuth planned as a later addition
 - **Hosting**: Render (Docker-based deploy; Render has no native .NET runtime), Frankfurt region
-- **CI**: GitHub Actions — build on push/PR to `main`
-- **Testing**: xUnit + Testcontainers (planned, not yet implemented)
+- **CI**: GitHub Actions — build + tests on push/PR to `main`
+- **Testing**: xUnit v3 + Testcontainers (real `postgres:18` container, schema created by applying the EF Core migrations). Test project: `tests/FamilyBudget.Tests/`. Currently covers `FamilyGroupService` only
 
 ## Key Architecture Decisions (do not silently deviate from these)
 
@@ -59,14 +59,22 @@ docker exec -it familybudget-db psql -U postgres -d familybudget -c "\dt"
 dotnet ef migrations add <Name>
 dotnet ef migrations remove --force   # if already applied
 dotnet ef database update             # applies to whatever DefaultConnection currently resolves to
+
+# Tests (Docker must be running: Testcontainers starts its own postgres:18 container)
+dotnet test tests/FamilyBudget.Tests
 ```
+
+Project layout constraints (do not break these):
+- `FamilyBudget.csproj` lives in the repository root and there is deliberately **no solution file** and **no `global.json`**: the argument-less `dotnet build` / `dotnet run` / `dotnet ef ...` / the Dockerfile's `dotnet restore` + `dotnet publish` must stay unambiguous.
+- The main project excludes `tests/**` via `DefaultItemExcludes`; without it the root project would compile the test project's files. Keep any new non-app project under `tests/` (or add its folder to the same exclusion).
+- The test project uses the package `xunit.v3.mtp-off`, not `xunit.v3`: plain `xunit.v3` turns on Microsoft Testing Platform, and on the .NET 10 SDK `dotnet test` then fails with “Testing with VSTest target is no longer supported...”. Do not swap the package without also changing how tests are run locally and in CI.
 
 See `NOTES.md` in the repo root for the fuller, evolving list of utility commands and gotchas (Render env var setup, git branch workflow, etc.) — check it before assuming a command or workflow detail.
 
 ## Git workflow
 
 - Every piece of work happens on a feature branch (`git checkout -b feature/...`), never directly on `main`.
-- CI (`.github/workflows/ci.yml`) runs `dotnet restore && dotnet build` on push and pull_request to `main`.
+- CI (`.github/workflows/ci.yml`) runs `dotnet restore`, `dotnet build` and `dotnet test tests/FamilyBudget.Tests` on push and pull_request to `main`. The job id `build` is the required status check of the `main` branch ruleset — do not rename the workflow or the job. A failing test blocks the merge.
 - Render auto-deploys only from `main`, so `main` must always stay in a working/deployable state.
 - After merge: `git checkout main && git pull`, then branch again from there.
 
@@ -102,4 +110,6 @@ One finding from the general code review remains open: **deliberately deferred**
 
 **Lesson learned the hard way**: earlier versions of this file described several of the above fixes as "done" based on what was discussed in a mentoring conversation, before the actual file changes were confirmed saved. They turned out not to have been applied at all. Do not update this section based on what was *discussed* or *planned* — only after directly reading the file and confirming the change is actually present on disk.
 
-Not started: Этап 6 (purchase tracking UI), Этап 7 (reports), Этап 8 (end-to-end deployed run-through), Этап 9 (Cowork CSV import), Этап 10 (tests).
+**Test infrastructure done ahead of Этап 10** (PR #21, verified by reading the files and the CI log): `tests/FamilyBudget.Tests/` with `PostgresFixture` (shared `postgres:18` Testcontainers container, `Database.MigrateAsync()`), `TestData` helpers and 15 tests in `FamilyGroupServiceTests` covering token creation/regeneration, group info, join preview, join and leave. All 15 pass locally and in GitHub Actions. Not covered by tests: concurrency (the group-row lock), cascade deletion against `Restrict` relationships, Identity pages, Blazor components. New features with business logic should come with tests in this project.
+
+Not started: Этап 6 (purchase tracking UI), Этап 7 (reports), Этап 8 (end-to-end deployed run-through), Этап 9 (Cowork CSV import). Этап 10 (tests): infrastructure and the first tests exist (see above); the rest of the stage — tests for reports and import logic — is not started.

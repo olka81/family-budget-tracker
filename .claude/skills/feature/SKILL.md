@@ -32,6 +32,7 @@ Show Olga a plan:
 - on an existing branch: what is already done there and what is left;
 - files to create and to modify, and what changes in each;
 - whether the database schema changes (a migration is needed) — yes or no, and why;
+- which automated tests will be added or changed in `tests/FamilyBudget.Tests`, listed by name (see step 4); if you believe the change needs no tests, say why;
 - how each acceptance criterion will be met;
 - open questions and anything ambiguous in the spec.
 
@@ -41,11 +42,13 @@ Do NOT write any code until Olga answers "ок". If she asks for changes, revise
 
 - Implement exactly the approved plan, following the Architecture Decisions in `CLAUDE.md`.
 - If during the work the plan has to change, or a schema change turns out to be needed that was not in the plan — STOP and ask.
+- Tests: new or changed business logic (services, validation, calculations, data rules) comes with automated tests in `tests/FamilyBudget.Tests`, in the same commit. Cover the main path and every expected outcome the code returns. Razor/Blazor markup, styling, documentation and configuration do not need tests. Follow the existing test conventions there (shared `PostgresFixture`, each test creates its own data).
+- Never weaken, skip or delete an existing test to make the suite pass. If an existing test fails because the behaviour was changed on purpose by the approved plan, update the test and say so in the report; if it fails for any other reason, STOP and report.
 - Migrations: never run `dotnet ef migrations add`, `migrations remove` or `database update` without Olga's explicit approval in this session. Never apply anything to Neon.
 
 ## 5. Build
 
-`dotnet build` must succeed with 0 errors. If a test project exists, `dotnet test` must pass.
+`dotnet build` must succeed with 0 errors, and `dotnet test tests/FamilyBudget.Tests` must pass with 0 failed tests. The tests need Docker running (Testcontainers); if Docker is not running, STOP and ask Olga to start it.
 If you cannot make it pass within the approved plan, STOP and report.
 
 ## 6. Stage
@@ -63,7 +66,7 @@ If the verdict is FAIL: do not commit. Report the discrepancies to Olga and STOP
 ## 8. Commit and push
 
 If PASS:
-1. Commit with a message `feat: <short summary in English>`.
+1. Commit with a message `<prefix>: <short summary in English>`. Prefix: `feat` for a feature, `fix` for a bug fix, or the prefix the spec names (`test`, `chore`, `docs`).
 2. `git push -u origin <branch>`.
 3. Do NOT open a PR.
 
@@ -72,7 +75,7 @@ If PASS:
 Report in English, and also save the full report to `D:\Cowork\PetProject\report.md`:
 - branch and commit hash;
 - `git show --stat HEAD`;
-- build (and test) result;
+- build result and test result (passed / failed / skipped counts), and the list of tests added or changed;
 - the verifier's answer in full;
 - whether a migration is needed and its status;
 - how Olga can check the feature by hand (steps to run locally).
