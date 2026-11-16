@@ -13,10 +13,10 @@ The primary goal is educational: deepen C# skills (ASP.NET Core, EF Core) and re
 
 ### 2.2. Family Groups
 - There is no separate “create a group” screen: a group is created automatically on registration (a personal group, see below).
-- A user can join an existing group via an invitation link. Each group has a single permanent link, which can be regenerated.
-- A user can join another group only if they are the sole member of their current group. That personal group is deleted on joining, together with all of its data; the UI warns about this before joining.
+- A user can join an existing group via an invitation link. Each group has a single permanent link, which can be regenerated. Any member of the group may regenerate it; the old link then stops working.
+- A user can join another group only if they are the sole member of their current group. That personal group is deleted on joining, together with all of its data; the UI warns about this before joining. Joining is always an explicit user action (a button after the warning); it never happens automatically after sign-in or registration.
 - If the current group has other members, the user must leave it first.
-On leaving a group, a new personal group “My Family” is created for the user.
+- A user can leave a group only if it has other members. On leaving, a new personal group “My Family” is created for the user, and they are shown the previous group’s link: they can come back using it for as long as the link has not been regenerated.
 - **Member rights: all group members are equal** — any member can add, view, and edit all of the group's purchases. There is no admin/regular-member split in the MVP.
 - **A user without a family:** upon registration, a "personal" group of one is automatically created for the user — there is no separate "no group" mode in the system. This simplifies the data model: purchases are always tied to a group rather than sometimes directly to a user, and moving from solo use to family use is simply inviting a second member into the already-existing group, with no data migration.
 - **One user = exactly one group** — membership in multiple groups at once is not supported (decided at the schema design stage).
