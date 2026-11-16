@@ -114,6 +114,10 @@ namespace FamilyBudget.Areas.Identity.Pages.Account
 
         public async Task<IActionResult> OnPostAsync(string returnUrl = null)
         {
+            // Keep the return URL when the page is redisplayed after a failed attempt,
+            // so the form's next submit still posts with it.
+            ReturnUrl = returnUrl;
+
             returnUrl ??= Url.Content("~/");
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
             if (ModelState.IsValid)

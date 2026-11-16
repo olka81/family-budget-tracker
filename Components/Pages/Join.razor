@@ -1,0 +1,96 @@
+@page "/join/{Token:guid}"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@using System.Security.Claims
+@using FamilyBudget.Services
+@inject FamilyGroupService GroupService
+@inject NavigationManager Navigation
+
+<PageTitle>Join a group</PageTitle>
+
+<h1>Join a group</h1>
+
+@if (preview is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    switch (preview.Status)
+    {
+        case JoinStatus.Ok:
+            <p>You are invited to join the group <strong>@preview.GroupName</strong>.</p>
+            <p>Members in this group: @preview.MemberCount</p>
+            <div class="alert alert-danger" role="alert">
+                <strong>Warning:</strong> if you join, your current personal group and ALL its data
+                will be permanently deleted. This cannot be undone.
+            </div>
+            <button class="btn btn-primary" disabled="@busy" @onclick="JoinAsync">Join</button>
+            break;
+
+        case JoinStatus.InvalidToken:
+            <div class="alert alert-warning" role="alert">
+                This invitation link is invalid or has been replaced. Ask a member of the group for the current link.
+            </div>
+            break;
+
+        case JoinStatus.AlreadyMember:
+            <div class="alert alert-info" role="status">
+                You are already a member of the group <strong>@preview.GroupName</strong>.
+                <a href="group">Go to my group</a>
+            </div>
+            break;
+
+        case JoinStatus.HasOtherMembers:
+            <div class="alert alert-warning" role="alert">
+                Your current group has other members, so you must leave it first before joining
+                the group <strong>@preview.GroupName</strong>.
+                <a href="group">Go to my group</a>
+            </div>
+            break;
+    }
+}
+
+@code {
+    [Parameter]
+    public Guid Token { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    private int userId;
+    private JoinPreview? preview;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // The user id comes from the authentication state only, never from user input.
+        var authState = await AuthenticationStateTask;
+        userId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        preview = await GroupService.PreviewJoinAsync(userId, Token);
+    }
+
+    private async Task JoinAsync()
+    {
+        busy = true;
+        try
+        {
+            var status = await GroupService.JoinAsync(userId, Token);
+            if (status == JoinStatus.Ok)
+            {
+                Navigation.NavigateTo("/group");
+                return;
+            }
+
+            // The situation has changed since the preview: show the message for the new status.
+            preview = status == JoinStatus.InvalidToken
+                ? new JoinPreview(status, null, 0)
+                : preview! with { Status = status };
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

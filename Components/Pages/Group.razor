@@ -1,0 +1,125 @@
+@page "/group"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@using System.Security.Claims
+@using FamilyBudget.Services
+@inject FamilyGroupService GroupService
+@inject NavigationManager Navigation
+
+<PageTitle>My group</PageTitle>
+
+<h1>My group</h1>
+
+@if (group is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    @if (leftGroup)
+    {
+        <div class="alert alert-info" role="status">
+            <p>You have left the group. This is your new personal group.</p>
+            @if (oldGroupLink is not null)
+            {
+                <p class="mb-0">
+                    You can come back using the old group's link, for as long as that link has not been regenerated:
+                    <br />
+                    <a href="@oldGroupLink">@oldGroupLink</a>
+                </p>
+            }
+        </div>
+    }
+
+    <h2>@group.Name</h2>
+
+    <h3>Members</h3>
+    <ul>
+        @foreach (var email in group.MemberEmails)
+        {
+            <li>@email</li>
+        }
+    </ul>
+
+    <h3>Invitation link</h3>
+    <p>Send this link to a person you want to invite to your group:</p>
+    <p>
+        <input type="text" class="form-control" readonly value="@inviteLink" aria-label="Invitation link" />
+    </p>
+    <p>
+        <button class="btn btn-secondary" disabled="@busy" @onclick="RegenerateAsync">Regenerate link</button>
+        <span class="ms-2 text-muted">After regeneration the old link stops working.</span>
+    </p>
+
+    @if (group.MemberEmails.Count > 1)
+    {
+        <h3>Leave group</h3>
+        <p>
+            <button class="btn btn-danger" disabled="@busy" @onclick="LeaveAsync">Leave group</button>
+        </p>
+    }
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    private int userId;
+    private GroupInfo? group;
+    private string? inviteLink;
+    private string? oldGroupLink;
+    private bool leftGroup;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // The user id comes from the authentication state only, never from user input.
+        var authState = await AuthenticationStateTask;
+        userId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        group = await GroupService.GetMyGroupAsync(userId);
+        inviteLink = BuildJoinLink(await GroupService.GetOrCreateInviteTokenAsync(userId));
+    }
+
+    private async Task RegenerateAsync()
+    {
+        busy = true;
+        try
+        {
+            inviteLink = BuildJoinLink(await GroupService.RegenerateInviteTokenAsync(userId));
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task LeaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var result = await GroupService.LeaveAsync(userId);
+            if (result.Status == LeaveStatus.Ok)
+            {
+                leftGroup = true;
+                oldGroupLink = result.OldGroupInviteToken is { } oldToken ? BuildJoinLink(oldToken) : null;
+            }
+
+            // Reload in both cases: on SoleMember the other members have left in the meantime.
+            await LoadAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    // BaseUri is absolute and always ends with a slash.
+    private string BuildJoinLink(Guid token) => $"{Navigation.BaseUri}join/{token}";
+}
