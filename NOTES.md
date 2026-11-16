@@ -105,6 +105,17 @@
 - **Не проверено**: не упрётся ли каскадное удаление группы в `Restrict`-связи (Purchase→Product, Purchase→User, родитель категории). Проверить на Этапе 6, когда появятся данные
 - Подробно: ТЗ 2.2, DB_SCHEMA, CLAUDE.md (Architecture Decision #14)
 
+## Тесты
+- Запуск из корня репозитория: `dotnet test tests/FamilyBudget.Tests`. Нужен запущенный Docker Desktop: Testcontainers сам поднимает отдельный контейнер `postgres:18` и удаляет его после прогона (локальную базу `familybudget-db` тесты не трогают)
+- Время: сами тесты ~1 с, вся команда ~9 с; первый запуск на машине дольше — скачиваются образы `postgres:18` и `testcontainers/ryuk`
+- Схема в тестовой базе создаётся настоящими миграциями (`Database.MigrateAsync()`), так что сломанная миграция уронит тесты
+- Проект: `tests/FamilyBudget.Tests/` — `PostgresFixture.cs` (контейнер + фабрика контекста), `TestData.cs` (создание групп и пользователей напрямую через `DbContext`), `FamilyGroupServiceTests.cs` (15 тестов). Каждый тест создаёт свои данные и не зависит от других
+- Пакет — `xunit.v3.mtp-off`, а не `xunit.v3`. Обычный `xunit.v3` включает Microsoft Testing Platform, и на .NET 10 SDK `dotnet test` падает с `Testing with VSTest target is no longer supported by Microsoft.Testing.Platform on .NET 10 SDK and later`. Альтернатива — `global.json` с `"test": { "runner": "Microsoft.Testing.Platform" }` в корне, но его читают все команды `dotnet` в корне, поэтому не стали
+- `FamilyBudget.csproj` лежит в корне, и файла решения нет намеренно: рядом с `.csproj` он сделал бы неоднозначными `dotnet build`, `dotnet ef` и сборку в Dockerfile, которые запускаются без имени проекта
+- В `FamilyBudget.csproj` стоит `<DefaultItemExcludes>...;tests/**</DefaultItemExcludes>` — без этого основной проект компилировал бы файлы тестового (включая сгенерированные в `tests/.../obj`)
+- В CI тесты — шаг `Test` внутри проверки `build`; упавший тест блокирует мерж. Лог: страница PR → проверка `CI / build` → раскрыть шаг `Test` (или вкладка Actions → запуск `CI` → `build` → `Test`); итог в последней строке, `Passed: N`
+- Не покрыто тестами: гонки (блокировка строки группы), каскадное удаление против `Restrict`, страницы Identity, Blazor-компоненты
+
 ## Claude Code — файлы с правами (permissions)
 - `.claude/settings.json` — общие правила прав (allow / deny), закоммичен в репозиторий; меняется только через PR. Правила deny побеждают allow на любом уровне настроек. Агенту запрещено редактировать `.claude/**`, поэтому эти файлы правятся вручную
 - `.claude/settings.local.json` — личные правила (накапливаются при ответе "don't ask again" в Claude Code). Его **нет** в `.gitignore` репозитория — он игнорируется только глобальным git ignore-файлом `C:\Users\Asus\.config\git\ignore` на Windows-машине. Проверить: `git check-ignore -v .claude/settings.local.json`
