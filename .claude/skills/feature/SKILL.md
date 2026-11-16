@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 Implement the feature described in the spec file: $ARGUMENTS
 
-Write all messages to Olga, the plan and the report in Russian. Code comments stay in English.
+Write all messages to Olga, the plan and the report in English. Code comments stay in English.
 
 ## 0. Read the spec
 
@@ -69,7 +69,7 @@ If PASS:
 
 ## 9. Report
 
-Report in Russian, and also save the full report to `D:\Cowork\PetProject\report.md`:
+Report in English, and also save the full report to `D:\Cowork\PetProject\report.md`:
 - branch and commit hash;
 - `git show --stat HEAD`;
 - build (and test) result;
