@@ -1,3 +1,5 @@
+namespace FamilyBudget.Services;
+
 // Join Status: the same enum to check before join, and to join
 public enum JoinStatus { Ok, InvalidToken, AlreadyMember, HasOtherMembers }
 
