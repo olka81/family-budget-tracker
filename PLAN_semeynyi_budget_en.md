@@ -78,7 +78,7 @@ Moved up deliberately: without this step, any feature that touches the DB would 
 
 1. Recreate the migration for the new model (`ApplicationUser`, `IdentityDbContext`). ✅
 2. ASP.NET Core Identity with email/password — Login/Register/Logout as static SSR pages (see above), with no external dependencies, so as not to be blocked on setting up Google. ✅
-3. Group screens via invitation link: a group page (link, regeneration, leaving the group) and a protected join page (with ReturnUrl). There is no separate “create a group” screen — a personal group is created on registration (already done). Join/leave rules — see the spec 2.2 and DB_SCHEMA.
+3. Group screens via invitation link: a group page (link, regeneration, leaving the group) and a protected join page (with ReturnUrl). There is no separate “create a group” screen — a personal group is created on registration (already done). Join/leave rules — see the spec 2.2 and DB_SCHEMA. ✅
 4. As a separate sub-step — add Google OAuth on top of the already-working Identity authentication (registering an OAuth client in Google Cloud Console; technically this is the built-in `UserLogins` table, not a hand-rolled field).
 
 ## Stage 6. Purchase Tracking
