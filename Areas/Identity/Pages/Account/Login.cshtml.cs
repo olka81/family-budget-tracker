@@ -106,6 +106,10 @@ namespace FamilyBudget.Areas.Identity.Pages.Account
         {
             returnUrl ??= Url.Content("~/");
 
+            // Keep the return URL when the page is redisplayed after a failed attempt,
+            // so the "Register as a new user" link still carries it.
+            ReturnUrl = returnUrl;
+
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
 
             if (ModelState.IsValid)
