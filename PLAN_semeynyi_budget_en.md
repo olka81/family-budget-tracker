@@ -84,7 +84,8 @@ Moved up deliberately: without this step, any feature that touches the DB would 
 ## Stage 6. Purchase Tracking
 
 1. Forms for adding/editing a purchase (date, amount, category, note) on Blazor pages.
-2. Category management: creation, arbitrary-depth nesting, seeding a default category set when a group is created.
+2. Category management: creation, arbitrary-depth nesting, seeding a default category set when a group is created. ✅
+   Done (PR #23, November 2026): create, rename, delete together with the subtree; the default set is seeded when a group is created, and existing groups got it from the data migration `SeedDefaultCategories`. Not done: moving a category to another parent (with the cycle check).
 
 ## Stage 7. Reports (MVP)
 

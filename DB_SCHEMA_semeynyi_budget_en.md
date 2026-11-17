@@ -45,6 +45,12 @@ Plus the service tables that Identity adds automatically via `IdentityDbContext<
 | ParentCategoryId | FK → Category, nullable | self-reference, arbitrary hierarchy depth |
 | FamilyGroupId | FK → FamilyGroup, not null | |
 
+**Default set (Stage 6):** every new group gets a tree of 26 categories (8 top-level); the only definition in code is `Services/DefaultCategories.cs`. Groups that existed before got the tree from the data migration `SeedDefaultCategories` (only groups with no categories; the migration holds a frozen copy of the list).
+
+**Names** may repeat, including among sibling categories — there is no uniqueness constraint.
+
+**Deleting a category** deletes its whole subtree (application logic, `CategoryService`). Products in the deleted categories get `CategoryId = NULL` (`ON DELETE SET NULL`); purchases are not affected.
+
 ### Product
 | Field | Type | Comment |
 |---|---|---|
@@ -90,14 +96,14 @@ Plus the service tables that Identity adds automatically via `IdentityDbContext<
 
 ## Rules That Can't Be Expressed as a Plain DB Constraint (need application-level checks)
 
-1. **Protection against cycles in the category hierarchy** (A → B → A). When changing ParentCategoryId, you need to check that the new parent's ancestors don't include the category itself — there's no simple SQL CHECK for arbitrary depth.
+1. **Protection against cycles in the category hierarchy** (A → B → A). When changing ParentCategoryId, you need to check that the new parent's ancestors don't include the category itself — there's no simple SQL CHECK for arbitrary depth. Moving a category to another parent is not implemented yet.
 2. **UserId on Purchase must belong to the same FamilyGroupId** as the purchase itself — a plain FK doesn't enforce this, it needs validation in code on save.
 3. **Joining another group:** allowed only if the user is the sole member of their current group. Order: first move the user to the new group (change FamilyGroupId), then delete the old personal group together with its data. The reverse order is not possible: the user’s FK to the group is cascading, so deleting the group would delete the user. Both steps run in one transaction; at its start the row of the user’s current group is locked (`SELECT ... FOR UPDATE`), so that another person joining that group at the same moment cannot have their account deleted by the cascade.
 4. **Leaving a group:** allowed only if the group has other members. In one transaction a new personal group “My Family” is created and the user is moved into it; the previous group and its data are left unchanged.
 
 ## Open Questions Left for Later (don't block Stage 3)
 
-- Not verified: whether cascade-deleting a group with its data runs into the Restrict relationships (Purchase→Product, Purchase→User, category parent). Joining a group relies on the cascade; to be checked in Stage 6, once groups have data.
+- Verified by a test (Stage 6): cascade-deleting a group with nested categories works despite the Restrict link to the parent category. Not verified: the Restrict relationships Purchase→Product and Purchase→User — joining a group relies on the cascade; to be checked once purchases exist.
 - Not decided: what happens to the purchases of a member who has left a group (Purchase→User is Restrict).
 - Exact CSV format for import via Cowork — now that the schema exists, this can be decided (Stage 9 per the plan).
 - Duplicate-detection logic on import — also Stage 9.
