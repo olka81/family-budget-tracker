@@ -86,9 +86,11 @@ Moved up deliberately: without this step, any feature that touches the DB would 
 1. Forms for adding/editing a purchase (date, amount, category, note) on Blazor pages. The form allows entering several items at once: each item is a separate `Purchase` row with a shared date, store, buyer and payment method.
 2. Category management: creation, arbitrary-depth nesting, seeding a default category set when a group is created. ✅
    Done (PR #23, November 2026): create, rename, delete together with the subtree; the default set is seeded when a group is created, and existing groups got it from the data migration `SeedDefaultCategories`. Not done: moving a category to another parent (with the cycle check).
-3. Product and store services — a separate task before the purchase form, without their own pages. Products: find-or-create, rename, change category, delete (a product with purchases cannot be deleted). Stores: create, rename, delete. Product and store names are stored in lower case.
+3. Product and store services — a separate task before the purchase form, without their own pages. Products: find-or-create, rename, change category, delete (a product with purchases cannot be deleted). Stores: create, rename, delete. Product and store names are stored in lower case. ✅
+   Done (PR #26, November 2026): the services and a shared name normalization (trim, collapse whitespace, lower case), with tests.
+4. Merging products (combining two products into one). Required; details when the task is specified.
 
-Order within the stage: 2 → 3 → 1.
+Order within the stage: 2 → 3 → 1; item 4 after the purchase form.
 
 ## Stage 7. Reports (MVP)
 
