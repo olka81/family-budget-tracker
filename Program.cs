@@ -36,6 +36,8 @@ builder.Services.AddSingleton<Microsoft.AspNetCore.Identity.UI.Services.IEmailSe
 
 builder.Services.AddScoped<FamilyGroupService>();
 builder.Services.AddScoped<CategoryService>();
+builder.Services.AddScoped<ProductService>();
+builder.Services.AddScoped<StoreService>();
 
 var app = builder.Build();
 

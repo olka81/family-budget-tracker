@@ -88,6 +88,62 @@ internal sealed class TestData(IDbContextFactory<FamilyBudgetDbContext> dbFactor
         return await db.Products.AsNoTracking().SingleOrDefaultAsync(p => p.Id == productId);
     }
 
+    public async Task<List<ProductRow>> GetProductsAsync(int groupId)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return await db.Products
+            .Where(p => p.FamilyGroupId == groupId)
+            .OrderBy(p => p.Id)
+            .Select(p => new ProductRow(p.Id, p.Name, p.CategoryId, p.FamilyGroupId))
+            .ToListAsync();
+    }
+
+    public async Task<Store> CreateStoreAsync(int groupId, string name)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+
+        var store = new Store { Name = name, FamilyGroupId = groupId };
+        db.Stores.Add(store);
+        await db.SaveChangesAsync();
+
+        return store;
+    }
+
+    public async Task<List<StoreRow>> GetStoresAsync(int groupId)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return await db.Stores
+            .Where(s => s.FamilyGroupId == groupId)
+            .OrderBy(s => s.Id)
+            .Select(s => new StoreRow(s.Id, s.Name, s.FamilyGroupId))
+            .ToListAsync();
+    }
+
+    // No purchases can be created through the app yet, so the row is inserted directly.
+    public async Task<Purchase> CreatePurchaseAsync(int groupId, int userId, int productId, int? storeId = null)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+
+        var purchase = new Purchase
+        {
+            FamilyGroupId = groupId,
+            UserId = userId,
+            ProductId = productId,
+            StoreId = storeId,
+            Price = 1.50m
+        };
+        db.Purchases.Add(purchase);
+        await db.SaveChangesAsync();
+
+        return purchase;
+    }
+
+    public async Task<Purchase?> FindPurchaseAsync(int purchaseId)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return await db.Purchases.AsNoTracking().SingleOrDefaultAsync(p => p.Id == purchaseId);
+    }
+
     // Seeds the default tree for a new group through the production seeding code.
     public async Task<FamilyGroup> CreateGroupWithDefaultCategoriesAsync(string name)
     {
@@ -120,6 +176,10 @@ internal sealed class TestData(IDbContextFactory<FamilyBudgetDbContext> dbFactor
 }
 
 internal sealed record CategoryRow(int Id, string Name, int? ParentId, int GroupId);
+
+internal sealed record ProductRow(int Id, string Name, int? CategoryId, int GroupId);
+
+internal sealed record StoreRow(int Id, string Name, int GroupId);
 
 // The expected default tree, written out independently of the production definition.
 // Each entry is the full path from the top level, so comparing the sets of paths checks
