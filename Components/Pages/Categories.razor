@@ -37,12 +37,15 @@ else
     <ul class="list-unstyled">
         @foreach (var row in rows)
         {
-            <li @key="row.Node.Id" style="padding-left: @(row.Depth * 1.5)rem">
+            <li @key="row.Node.Id" style="padding-left: @(row.Depth * 24)px">
                 <div class="d-flex align-items-center gap-2 py-1">
                     <span>@row.Node.Name</span>
-                    <button class="btn btn-sm btn-outline-secondary" disabled="@busy" @onclick="() => StartAddChild(row.Node)">Add subcategory</button>
-                    <button class="btn btn-sm btn-outline-secondary" disabled="@busy" @onclick="() => StartRename(row.Node)">Rename</button>
-                    <button class="btn btn-sm btn-outline-danger" disabled="@busy" @onclick="() => StartDelete(row.Node)">Delete</button>
+                    <button class="btn btn-sm btn-outline-secondary" disabled="@busy"
+                            @onclick="() => StartAddChild(row.Node)">Add subcategory</button>
+                    <button class="btn btn-sm btn-outline-secondary" disabled="@busy"
+                            @onclick="() => StartRename(row.Node)">Rename</button>
+                    <button class="btn btn-sm btn-outline-danger" disabled="@busy"
+                            @onclick="() => StartDelete(row.Node)">Delete</button>
                 </div>
 
                 @if (targetId == row.Node.Id)
@@ -125,8 +128,8 @@ else
     private RenderFragment NameForm(string buttonText, Func<Task> onSave) =>
         @<div class="my-2" style="max-width: 30rem">
             <div class="d-flex gap-2">
-                <input class="form-control form-control-sm" @bind="name" @bind:event="oninput"
-                       placeholder="Category name" aria-label="Category name" />
+                <input class="form-control form-control-sm" @bind="name" @bind:event="oninput" placeholder="Category name"
+                       aria-label="Category name" />
                 <button class="btn btn-primary btn-sm" disabled="@busy" @onclick="onSave">@buttonText</button>
                 <button class="btn btn-secondary btn-sm" disabled="@busy" @onclick="Cancel">Cancel</button>
             </div>
