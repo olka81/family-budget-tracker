@@ -20,6 +20,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using FamilyBudget.Data;
+using FamilyBudget.Services;
 
 namespace FamilyBudget.Areas.Identity.Pages.Account
 {
@@ -135,6 +136,8 @@ namespace FamilyBudget.Areas.Identity.Pages.Account
                 };
 
                 _familyBudgetDbContext.FamilyGroups.Add(familyGroup);
+                // Default categories are saved together with the group, inside this transaction.
+                DefaultCategories.AddTo(_familyBudgetDbContext, familyGroup);
                 await _familyBudgetDbContext.SaveChangesAsync();
 
                 user.FamilyGroupId = familyGroup.Id;

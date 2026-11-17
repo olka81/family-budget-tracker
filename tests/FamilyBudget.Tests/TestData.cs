@@ -1,5 +1,6 @@
 using FamilyBudget.Data;
 using FamilyBudget.Models;
+using FamilyBudget.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace FamilyBudget.Tests;
@@ -57,5 +58,119 @@ internal sealed class TestData(IDbContextFactory<FamilyBudgetDbContext> dbFactor
     {
         await using var db = await dbFactory.CreateDbContextAsync();
         return await db.Users.CountAsync(u => u.FamilyGroupId == groupId);
+    }
+
+    public async Task<Category> CreateCategoryAsync(int groupId, string name, int? parentId = null)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+
+        var category = new Category { Name = name, FamilyGroupId = groupId, ParentCategoryId = parentId };
+        db.Categories.Add(category);
+        await db.SaveChangesAsync();
+
+        return category;
+    }
+
+    public async Task<Product> CreateProductAsync(int groupId, string name, int? categoryId)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+
+        var product = new Product { Name = name, FamilyGroupId = groupId, CategoryId = categoryId };
+        db.Products.Add(product);
+        await db.SaveChangesAsync();
+
+        return product;
+    }
+
+    public async Task<Product?> FindProductAsync(int productId)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return await db.Products.AsNoTracking().SingleOrDefaultAsync(p => p.Id == productId);
+    }
+
+    // Seeds the default tree for a new group through the production seeding code.
+    public async Task<FamilyGroup> CreateGroupWithDefaultCategoriesAsync(string name)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+
+        var group = new FamilyGroup { Name = name };
+        db.FamilyGroups.Add(group);
+        DefaultCategories.AddTo(db, group);
+        await db.SaveChangesAsync();
+
+        return group;
+    }
+
+    public async Task<List<CategoryRow>> GetCategoriesAsync(int groupId)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return await db.Categories
+            .Where(c => c.FamilyGroupId == groupId)
+            .OrderBy(c => c.Id)
+            .Select(c => new CategoryRow(c.Id, c.Name, c.ParentCategoryId, c.FamilyGroupId))
+            .ToListAsync();
+    }
+
+    public async Task<int> CountCategoriesAsync(IEnumerable<int> categoryIds)
+    {
+        var ids = categoryIds.ToList();
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return await db.Categories.CountAsync(c => ids.Contains(c.Id));
+    }
+}
+
+internal sealed record CategoryRow(int Id, string Name, int? ParentId, int GroupId);
+
+// The expected default tree, written out independently of the production definition.
+// Each entry is the full path from the top level, so comparing the sets of paths checks
+// every parent-child pair.
+internal static class ExpectedDefaultTree
+{
+    public static readonly string[] Paths =
+    [
+        "Продукты питания",
+        "Продукты питания/Молочные",
+        "Продукты питания/Молочные/Кисломолочка",
+        "Продукты питания/Молочные/Масло",
+        "Продукты питания/Молочные/Прочее",
+        "Продукты питания/Мясные",
+        "Продукты питания/Мясные/Для готовки",
+        "Продукты питания/Мясные/Готовые к употреблению",
+        "Продукты питания/Хлебо-булочные",
+        "Продукты питания/Сладкое",
+        "Продукты питания/Яйца",
+        "Продукты питания/Бакалея",
+        "Продукты питания/Овощи и фрукты",
+        "Продукты питания/Напитки",
+        "Продукты питания/Прочее",
+        "Услуги",
+        "Аренда",
+        "Подписки",
+        "Одежда, обувь",
+        "Зоотовары",
+        "Зоотовары/Корм",
+        "Зоотовары/Наполнитель",
+        "Зоотовары/Прочее",
+        "Зоотовары/Ветеринар",
+        "Табак и аксессуары",
+        "Общ.транспорт",
+    ];
+
+    // Builds "a/b/c" paths from stored rows (parents must be among the rows).
+    public static List<string> ToPaths(IReadOnlyList<CategoryRow> rows)
+    {
+        var byId = rows.ToDictionary(r => r.Id);
+
+        string PathOf(CategoryRow row) =>
+            row.ParentId is { } parentId ? $"{PathOf(byId[parentId])}/{row.Name}" : row.Name;
+
+        return rows.Select(PathOf).ToList();
+    }
+
+    public static void AssertMatches(IReadOnlyList<CategoryRow> rows)
+    {
+        Assert.Equal(26, rows.Count);
+        Assert.Equal(8, rows.Count(r => r.ParentId is null));
+        Assert.Equal(Paths.Order(StringComparer.Ordinal), ToPaths(rows).Order(StringComparer.Ordinal));
     }
 }
