@@ -1,0 +1,210 @@
+@page "/categories"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@using System.Security.Claims
+@using FamilyBudget.Services
+@inject CategoryService CategoryService
+
+<PageTitle>Categories</PageTitle>
+
+<h1>Categories</h1>
+
+@if (rows is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    @if (message is not null)
+    {
+        <div class="alert alert-warning" role="status">@message</div>
+    }
+
+    <p>
+        <button class="btn btn-primary" disabled="@busy" @onclick="StartAddTopLevel">Add top-level category</button>
+    </p>
+
+    @if (mode == Mode.Add && targetId is null)
+    {
+        @NameForm("Add", SaveAsync)
+    }
+
+    @if (rows.Count == 0)
+    {
+        <p>There are no categories yet.</p>
+    }
+
+    <ul class="list-unstyled">
+        @foreach (var row in rows)
+        {
+            <li @key="row.Node.Id" style="padding-left: @(row.Depth * 24)px">
+                <div class="d-flex align-items-center gap-2 py-1">
+                    <span>@row.Node.Name</span>
+                    <button class="btn btn-sm btn-outline-secondary" disabled="@busy"
+                            @onclick="() => StartAddChild(row.Node)">Add subcategory</button>
+                    <button class="btn btn-sm btn-outline-secondary" disabled="@busy"
+                            @onclick="() => StartRename(row.Node)">Rename</button>
+                    <button class="btn btn-sm btn-outline-danger" disabled="@busy"
+                            @onclick="() => StartDelete(row.Node)">Delete</button>
+                </div>
+
+                @if (targetId == row.Node.Id)
+                {
+                    @switch (mode)
+                    {
+                        case Mode.Add:
+                            @NameForm("Add subcategory", SaveAsync)
+                            break;
+                        case Mode.Rename:
+                            @NameForm("Rename", SaveAsync)
+                            break;
+                        case Mode.Delete:
+                            <div class="alert alert-danger">
+                                <p>
+                                    Delete “@row.Node.Name”?
+                                    All its subcategories (@CountDescendants(row.Node)) will be deleted too,
+                                    and products in these categories will lose their category.
+                                </p>
+                                <button class="btn btn-danger btn-sm" disabled="@busy" @onclick="DeleteAsync">Delete</button>
+                                <button class="btn btn-secondary btn-sm" disabled="@busy" @onclick="Cancel">Cancel</button>
+                            </div>
+                            break;
+                    }
+                }
+            </li>
+        }
+    </ul>
+}
+
+@code {
+    private enum Mode { None, Add, Rename, Delete }
+
+    private record Row(CategoryNode Node, int Depth);
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    private int userId;
+    private List<Row>? rows;
+
+    // Only one inline form is open at a time.
+    // targetId: the category the form belongs to; null with Mode.Add = new top-level category.
+    private Mode mode = Mode.None;
+    private int? targetId;
+    private string name = "";
+    private string? validationError;
+    private string? message;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // The user id comes from the authentication state only, never from user input.
+        var authState = await AuthenticationStateTask;
+        userId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var tree = await CategoryService.GetTreeAsync(userId);
+        var flat = new List<Row>();
+        Flatten(tree, 0, flat);
+        rows = flat;
+    }
+
+    private static void Flatten(IReadOnlyList<CategoryNode> nodes, int depth, List<Row> result)
+    {
+        foreach (var node in nodes)
+        {
+            result.Add(new Row(node, depth));
+            Flatten(node.Children, depth + 1, result);
+        }
+    }
+
+    private static int CountDescendants(CategoryNode node) =>
+        node.Children.Sum(c => 1 + CountDescendants(c));
+
+    private RenderFragment NameForm(string buttonText, Func<Task> onSave) =>
+        @<div class="my-2" style="max-width: 30rem">
+            <div class="d-flex gap-2">
+                <input class="form-control form-control-sm" @bind="name" @bind:event="oninput" placeholder="Category name"
+                       aria-label="Category name" />
+                <button class="btn btn-primary btn-sm" disabled="@busy" @onclick="onSave">@buttonText</button>
+                <button class="btn btn-secondary btn-sm" disabled="@busy" @onclick="Cancel">Cancel</button>
+            </div>
+            @if (validationError is not null)
+            {
+                <div class="text-danger small mt-1">@validationError</div>
+            }
+        </div>;
+
+    private void StartAddTopLevel() => Open(Mode.Add, null, "");
+
+    private void StartAddChild(CategoryNode node) => Open(Mode.Add, node.Id, "");
+
+    private void StartRename(CategoryNode node) => Open(Mode.Rename, node.Id, node.Name);
+
+    private void StartDelete(CategoryNode node) => Open(Mode.Delete, node.Id, "");
+
+    private void Open(Mode newMode, int? id, string initialName)
+    {
+        mode = newMode;
+        targetId = id;
+        name = initialName;
+        validationError = null;
+        message = null;
+    }
+
+    private void Cancel() => Open(Mode.None, null, "");
+
+    private async Task SaveAsync()
+    {
+        busy = true;
+        try
+        {
+            var status = mode == Mode.Rename
+                ? await CategoryService.RenameAsync(userId, targetId!.Value, name)
+                : (await CategoryService.CreateAsync(userId, name, targetId)).Status;
+
+            await HandleStatusAsync(status);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        busy = true;
+        try
+        {
+            await HandleStatusAsync(await CategoryService.DeleteAsync(userId, targetId!.Value));
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task HandleStatusAsync(CategoryStatus status)
+    {
+        switch (status)
+        {
+            case CategoryStatus.Ok:
+                Cancel();
+                await LoadAsync();
+                break;
+            case CategoryStatus.EmptyName:
+                validationError = "Name must not be empty.";
+                break;
+            case CategoryStatus.NotFound:
+                // Deleted in the meantime (e.g. by another member of the group).
+                Cancel();
+                message = "This category no longer exists. The list has been refreshed.";
+                await LoadAsync();
+                break;
+        }
+    }
+}

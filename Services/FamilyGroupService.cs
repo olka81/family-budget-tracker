@@ -100,8 +100,9 @@ public class FamilyGroupService(IDbContextFactory<FamilyBudgetDbContext> dbFacto
         await db.SaveChangesAsync();
 
         // Step 2: delete the old personal group. Its data is removed by the database cascade.
-        // NOT VERIFIED: how this cascade interacts with the Restrict relationships
-        // (Purchase -> Product, Purchase -> User, Category parent). Must be checked at Stage 6.
+        // Verified by a test (DefaultCategoriesTests): the cascade works for a group with
+        // nested categories despite the Restrict link to the parent category.
+        // NOT VERIFIED yet: the Restrict relationships Purchase -> Product and Purchase -> User.
         var oldGroup = await db.FamilyGroups.SingleAsync(g => g.Id == oldGroupId);
         db.FamilyGroups.Remove(oldGroup);
         await db.SaveChangesAsync();
@@ -127,8 +128,11 @@ public class FamilyGroupService(IDbContextFactory<FamilyBudgetDbContext> dbFacto
 
         var oldToken = await ReadInviteTokenAsync(db, oldGroupId);
 
-        // EF Core inserts the new group and then updates the user in one SaveChanges.
-        user.FamilyGroup = new FamilyGroup { Name = PersonalGroupName };
+        // EF Core inserts the new group with its default categories and then updates
+        // the user in one SaveChanges, inside this transaction.
+        var newGroup = new FamilyGroup { Name = PersonalGroupName };
+        DefaultCategories.AddTo(db, newGroup);
+        user.FamilyGroup = newGroup;
         await db.SaveChangesAsync();
 
         await transaction.CommitAsync();

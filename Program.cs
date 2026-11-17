@@ -35,6 +35,7 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSingleton<Microsoft.AspNetCore.Identity.UI.Services.IEmailSender, Microsoft.AspNetCore.Identity.UI.Services.NoOpEmailSender>();
 
 builder.Services.AddScoped<FamilyGroupService>();
+builder.Services.AddScoped<CategoryService>();
 
 var app = builder.Build();
 

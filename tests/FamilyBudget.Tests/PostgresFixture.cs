@@ -17,6 +17,9 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public IDbContextFactory<FamilyBudgetDbContext> DbFactory { get; private set; } = null!;
 
+    // For tests that need their own database in the same container (e.g. migration tests).
+    public string ConnectionString => _container.GetConnectionString();
+
     public async ValueTask InitializeAsync()
     {
         await _container.StartAsync();
