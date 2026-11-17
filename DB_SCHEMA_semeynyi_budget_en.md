@@ -55,7 +55,7 @@ Plus the service tables that Identity adds automatically via `IdentityDbContext<
 | Field | Type | Comment |
 |---|---|---|
 | Id | PK | |
-| Name | text | unique within a FamilyGroupId |
+| Name | text | unique within a FamilyGroupId; stored in lower case, trimmed — so uniqueness is effectively case-insensitive |
 | CategoryId | FK → Category, nullable | may be unassigned |
 | FamilyGroupId | FK → FamilyGroup, not null | |
 
@@ -63,7 +63,7 @@ Plus the service tables that Identity adds automatically via `IdentityDbContext<
 | Field | Type | Comment |
 |---|---|---|
 | Id | PK | |
-| Name | text | |
+| Name | text | stored in lower case, trimmed; duplicates allowed |
 | FamilyGroupId | FK → FamilyGroup, not null | |
 
 ### Purchase

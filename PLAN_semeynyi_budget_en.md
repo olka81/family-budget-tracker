@@ -83,9 +83,12 @@ Moved up deliberately: without this step, any feature that touches the DB would 
 
 ## Stage 6. Purchase Tracking
 
-1. Forms for adding/editing a purchase (date, amount, category, note) on Blazor pages.
+1. Forms for adding/editing a purchase (date, amount, category, note) on Blazor pages. The form allows entering several items at once: each item is a separate `Purchase` row with a shared date, store, buyer and payment method.
 2. Category management: creation, arbitrary-depth nesting, seeding a default category set when a group is created. ✅
    Done (PR #23, November 2026): create, rename, delete together with the subtree; the default set is seeded when a group is created, and existing groups got it from the data migration `SeedDefaultCategories`. Not done: moving a category to another parent (with the cycle check).
+3. Product and store services — a separate task before the purchase form, without their own pages. Products: find-or-create, rename, change category, delete (a product with purchases cannot be deleted). Stores: create, rename, delete. Product and store names are stored in lower case.
+
+Order within the stage: 2 → 3 → 1.
 
 ## Stage 7. Reports (MVP)
 
@@ -98,8 +101,8 @@ Moved up deliberately: without this step, any feature that touches the DB would 
 
 ## Stage 9. Import via Claude Cowork
 
-1. Only now, knowing the final DB schema, do we fix the exact CSV format (columns, category-hierarchy encoding).
-2. Import screen: file upload (`CsvHelper`), preview of parsed rows, a check for possible duplicates, confirmation, and bulk insert.
+1. Only now, knowing the final DB schema, do we fix the exact file format: CSV or JSON (fields, category-hierarchy encoding).
+2. Import screen: file upload with validation of the file (`CsvHelper` if we choose CSV), preview of parsed rows, a check for possible duplicates, confirmation, and bulk insert.
 3. We formulate the instruction for Cowork for this specific format.
 
 ## Stage 10. Tests
