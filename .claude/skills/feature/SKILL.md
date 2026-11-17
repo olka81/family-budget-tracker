@@ -9,6 +9,10 @@ Implement the feature described in the spec file: $ARGUMENTS
 
 Write all messages to Olga, the plan and the report in English. Code comments stay in English.
 
+Sound signal: every time you stop and wait for Olga's input (the plan, any STOP, a question) and when you finish (after the report), run as your LAST action, verbatim:
+`powershell.exe -NoProfile -Command "[console]::beep(880,300)"`
+This exact command is allowed in Olga's local settings; do not change it.
+
 ## 0. Read the spec
 
 Read the spec file. It must contain these sections: **Branch**, **Goal**, **Requirements**, **Acceptance criteria**, **Out of scope**.
@@ -67,7 +71,8 @@ If the verdict is FAIL: do not commit. Report the discrepancies to Olga and STOP
 
 If PASS:
 1. Commit with a message `<prefix>: <short summary in English>`. Prefix: `feat` for a feature, `fix` for a bug fix, or the prefix the spec names (`test`, `chore`, `docs`).
-2. `git push -u origin <branch>`.
+2. Check that the commit succeeded (`git log -1` shows the new commit) before pushing. Then `git push -u origin <branch>`.
+   Never put commit and push in one command joined with `;` — if the commit fails, the push still runs. Run them as separate commands, or join them with `&&`. If the commit fails, do not push: fix the cause or STOP and report.
 3. Do NOT open a PR.
 
 ## 9. Report
