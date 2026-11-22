@@ -52,6 +52,15 @@ public class FamilyBudgetDbContext : IdentityDbContext<ApplicationUser, Identity
             .HasForeignKey(p => p.UserId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // numeric(10,2) / numeric(10,3), as in DB_SCHEMA.
+        modelBuilder.Entity<Purchase>()
+            .Property(p => p.Price)
+            .HasPrecision(10, 2);
+
+        modelBuilder.Entity<Purchase>()
+            .Property(p => p.Quantity)
+            .HasPrecision(10, 3);
+
         modelBuilder.Entity<Product>()
             .HasIndex(p => new { p.FamilyGroupId, p.Name })
             .IsUnique();

@@ -204,13 +204,15 @@ namespace FamilyBudget.Migrations
                         .HasColumnType("integer");
 
                     b.Property<decimal>("Price")
-                        .HasColumnType("numeric");
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)");
 
                     b.Property<int>("ProductId")
                         .HasColumnType("integer");
 
                     b.Property<decimal>("Quantity")
-                        .HasColumnType("numeric");
+                        .HasPrecision(10, 3)
+                        .HasColumnType("numeric(10,3)");
 
                     b.Property<int?>("StoreId")
                         .HasColumnType("integer");

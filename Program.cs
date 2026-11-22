@@ -38,6 +38,9 @@ builder.Services.AddScoped<FamilyGroupService>();
 builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<StoreService>();
+builder.Services.AddScoped<PurchaseService>();
+// "Today" for PurchaseService; tests use their own TimeProvider.
+builder.Services.AddSingleton(TimeProvider.System);
 
 var app = builder.Build();
 
