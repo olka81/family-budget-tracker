@@ -100,9 +100,9 @@ public class FamilyGroupService(IDbContextFactory<FamilyBudgetDbContext> dbFacto
         await db.SaveChangesAsync();
 
         // Step 2: delete the old personal group. Its data is removed by the database cascade.
-        // Verified by a test (DefaultCategoriesTests): the cascade works for a group with
-        // nested categories despite the Restrict link to the parent category.
-        // NOT VERIFIED yet: the Restrict relationships Purchase -> Product and Purchase -> User.
+        // Verified by tests (DefaultCategoriesTests, JoinCascadeTests): the cascade works for a group
+        // with nested categories, products, stores and purchases, despite the Restrict links
+        // (category parent, Purchase -> Product, Purchase -> User).
         var oldGroup = await db.FamilyGroups.SingleAsync(g => g.Id == oldGroupId);
         db.FamilyGroups.Remove(oldGroup);
         await db.SaveChangesAsync();

@@ -85,7 +85,7 @@ Plus the service tables that Identity adds automatically via `IdentityDbContext<
 
 **Discounts** are separate rows with a negative Price: a discount on an item is a row of the same product (Quantity = 1); a whole-receipt discount not tied to an item is a product "скидка" (discount) with no category. Note: if a report on purchased quantities is ever added, discount rows would count as units.
 
-**Currently in the database** (migration `InitialCreate`) Price and Quantity are `numeric` without precision; they are changed to `numeric(10,2)` / `numeric(10,3)` by a migration in the purchase-service task.
+The precision `numeric(10,2)` / `numeric(10,3)` is set by the migration `PurchasePrecision` (before it, in `InitialCreate`, the columns were `numeric` without precision).
 
 ## Relationships — Summary
 
@@ -109,7 +109,7 @@ Plus the service tables that Identity adds automatically via `IdentityDbContext<
 
 ## Open Questions Left for Later (don't block Stage 3)
 
-- Verified by a test (Stage 6): cascade-deleting a group with nested categories works despite the Restrict link to the parent category. Not verified: the Restrict relationships Purchase→Product and Purchase→User — joining a group relies on the cascade; to be checked once purchases exist.
+- Verified by tests (Stage 6): cascade-deleting a group when joining another one works with nested categories, products, stores and purchases — the Restrict relationships (category parent, Purchase→Product, Purchase→User) do not block it.
 - Not decided: what happens to the purchases of a member who has left a group (Purchase→User is Restrict).
 - Exact CSV format for import via Cowork — now that the schema exists, this can be decided (Stage 9 per the plan).
 - Duplicate-detection logic on import — also Stage 9.
