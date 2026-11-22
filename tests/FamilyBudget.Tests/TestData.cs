@@ -144,6 +144,21 @@ internal sealed class TestData(IDbContextFactory<FamilyBudgetDbContext> dbFactor
         return await db.Purchases.AsNoTracking().SingleOrDefaultAsync(p => p.Id == purchaseId);
     }
 
+    public async Task<Store?> FindStoreAsync(int storeId)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return await db.Stores.AsNoTracking().SingleOrDefaultAsync(s => s.Id == storeId);
+    }
+
+    public async Task<List<Purchase>> GetPurchasesAsync(int groupId)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync();
+        return await db.Purchases.AsNoTracking()
+            .Where(p => p.FamilyGroupId == groupId)
+            .OrderBy(p => p.Id)
+            .ToListAsync();
+    }
+
     // Seeds the default tree for a new group through the production seeding code.
     public async Task<FamilyGroup> CreateGroupWithDefaultCategoriesAsync(string name)
     {
