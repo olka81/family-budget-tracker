@@ -24,6 +24,13 @@ The primary goal is educational: deepen C# skills (ASP.NET Core, EF Core) and re
 ### 2.3. Purchase Tracking
 - Adding a purchase: date, amount, merchant/description, category, subcategory, note.
 - **Several items at once:** the form allows entering several items in one go (e.g. a whole receipt). Each item is saved as a separate purchase; the shared fields (date, store, buyer, payment method) are entered once for all items. There is no separate "receipt" entity.
+- **Saving items** is all or nothing: if any item is invalid, none is saved, and the user sees which item is wrong and why.
+- **Price and quantity:** the price is per unit; an item's spending = price × quantity. Quantity is fractional (up to thousandths) and strictly greater than zero. The price may be zero (a free item) or negative (a discount).
+- **Discounts** are carried over from the receipt as a separate line with a negative price. A discount on a specific item is a line of the same product, so it falls into that product's category. A discount that the receipt does not tie to any item is a product "скидка" (discount) with no category.
+- **Note** — each item has its own.
+- **Category** belongs to the product: the form lets the user choose it only for a new product; for a known product it is only shown.
+- **Date:** a date later than tomorrow (UTC) is replaced with tomorrow, and the user is told about the correction.
+- **Editing:** any field of a saved purchase can be changed.
 - Categories form a hierarchy of **arbitrary depth** (category → subcategory → sub-subcategory, etc., with no hard two-level limit), predefined (a default set) with the ability to add custom ones.
 - **Currency:** the MVP uses a single currency (EUR — Bulgaria has switched to the euro). The data structure is designed with future multi-currency support in mind (every purchase/account has an explicit currency field rather than a hardcoded value), but conversion and working with multiple currencies simultaneously are out of scope for the MVP.
 - **Import via Claude Cowork:** receipt scans are processed in Cowork, producing a CSV file of purchases that is uploaded to the app as a whole through a dedicated import screen (with a preview before confirmation and a check for possible duplicates). A purchase, in general, must include: date, amount, merchant, category (accounting for arbitrary hierarchy depth), and a note. **The exact CSV format (column set, category-path encoding, delimiters) will be finalized after the DB schema is designed** — the import format must follow from the data schema, not the other way around. The file format (CSV or JSON) is finally chosen in Stage 9; the file is validated before import.

@@ -71,15 +71,21 @@
 |---|---|---|
 | Id | PK | |
 | ProductId | FK → Product, not null | |
-| Price | numeric(10,2), not null | цена именно этой покупки, не продукта |
-| Quantity | numeric, not null, default 1 | дробное значение разрешено |
+| Price | numeric(10,2), not null | цена **за единицу** в этой покупке (не свойство продукта); может быть 0 и отрицательной — строка скидки |
+| Quantity | numeric(10,3), not null, default 1 | дробное (до тысячных), строго > 0 |
 | PaymentMethod | smallint, not null, default Card | enum: Card / Cash |
-| Date | date, not null, default сегодня | |
+| Date | date, not null, default сегодня | не позже завтрашнего дня (UTC): более поздняя дата заменяется на завтрашнюю |
 | StoreId | FK → Store, nullable | |
 | UserId | FK → ApplicationUser, not null, default — тот, кто вносит запись | выбор ограничен участниками той же FamilyGroup |
 | FamilyGroupId | FK → FamilyGroup, not null | продублировано намеренно — упрощает запросы для отчётов |
 | Currency | varchar(3), not null, default EUR | из ТЗ — задел на будущую мультивалютность, в MVP не используется активно |
-| Notes | текст, nullable | из ТЗ |
+| Notes | текст, nullable | из ТЗ; у каждой позиции своя |
+
+**Трата по позиции** = Price × Quantity.
+
+**Скидки** — отдельные строки с отрицательной Price: скидка на товар — строка того же продукта (Quantity = 1), скидка на весь чек без привязки к товару — продукт «скидка» без категории. Учесть: если появится отчёт по количеству купленного, строки скидок посчитаются как штуки.
+
+**Сейчас в базе** (миграция `InitialCreate`) Price и Quantity — `numeric` без точности; приводятся к `numeric(10,2)` / `numeric(10,3)` миграцией в задаче на сервис покупок.
 
 ## Связи — сводка
 

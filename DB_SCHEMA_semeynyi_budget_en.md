@@ -71,15 +71,21 @@ Plus the service tables that Identity adds automatically via `IdentityDbContext<
 |---|---|---|
 | Id | PK | |
 | ProductId | FK → Product, not null | |
-| Price | numeric(10,2), not null | the price of this specific purchase, not the product |
-| Quantity | numeric, not null, default 1 | fractional values allowed |
+| Price | numeric(10,2), not null | the **unit** price in this purchase (not a property of the product); may be 0 or negative — a discount line |
+| Quantity | numeric(10,3), not null, default 1 | fractional (up to thousandths), strictly > 0 |
 | PaymentMethod | smallint, not null, default Card | enum: Card / Cash |
-| Date | date, not null, default today | |
+| Date | date, not null, default today | not later than tomorrow (UTC): a later date is replaced with tomorrow |
 | StoreId | FK → Store, nullable | |
 | UserId | FK → ApplicationUser, not null, default — whoever enters the record | choice limited to members of the same FamilyGroup |
 | FamilyGroupId | FK → FamilyGroup, not null | intentionally duplicated — simplifies report queries |
 | Currency | varchar(3), not null, default EUR | from the spec — groundwork for future multi-currency support, not actively used in the MVP |
-| Notes | text, nullable | from the spec |
+| Notes | text, nullable | from the spec; each item has its own |
+
+**An item's spending** = Price × Quantity.
+
+**Discounts** are separate rows with a negative Price: a discount on an item is a row of the same product (Quantity = 1); a whole-receipt discount not tied to an item is a product "скидка" (discount) with no category. Note: if a report on purchased quantities is ever added, discount rows would count as units.
+
+**Currently in the database** (migration `InitialCreate`) Price and Quantity are `numeric` without precision; they are changed to `numeric(10,2)` / `numeric(10,3)` by a migration in the purchase-service task.
 
 ## Relationships — Summary
 
