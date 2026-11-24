@@ -31,6 +31,21 @@ public class FamilyGroupService(IDbContextFactory<FamilyBudgetDbContext> dbFacto
         return new GroupInfo(name, emails);
     }
 
+    // Members of the user's group with their ids, ordered by email.
+    public async Task<IReadOnlyList<GroupMember>> GetMembersAsync(int userId)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+
+        var groupId = await GetGroupIdAsync(db, userId);
+
+        return await db.Users
+            .Where(u => u.FamilyGroupId == groupId)
+            .OrderBy(u => u.Email)
+            .ThenBy(u => u.Id)
+            .Select(u => new GroupMember(u.Id, u.Email ?? ""))
+            .ToListAsync();
+    }
+
     public async Task<Guid> GetOrCreateInviteTokenAsync(int userId)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();

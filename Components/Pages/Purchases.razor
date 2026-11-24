@@ -1,0 +1,181 @@
+@page "/purchases"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@using System.Globalization
+@using System.Security.Claims
+@using FamilyBudget.Services
+@inject PurchaseService PurchaseService
+@inject IJSRuntime JS
+
+<PageTitle>Purchases</PageTitle>
+
+<h1>Purchases</h1>
+
+@if (purchases is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <p>
+        <a class="btn btn-primary" href="purchases/new">New purchase</a>
+    </p>
+
+    <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+        <div>
+            <label class="form-label mb-0" for="period-from">From</label>
+            <input id="period-from" type="date" max="9999-12-31" class="form-control" @bind="from" />
+        </div>
+        <div>
+            <label class="form-label mb-0" for="period-to">To</label>
+            <input id="period-to" type="date" max="9999-12-31" class="form-control" @bind="to" />
+        </div>
+        <button class="btn btn-secondary" disabled="@busy" @onclick="ShowAsync">Show</button>
+    </div>
+
+    @if (correctedDate is { } savedDate)
+    {
+        <div class="alert alert-warning" role="status">
+            The date was later than tomorrow and was saved as @FormatDate(savedDate).
+        </div>
+    }
+
+    @if (message is not null)
+    {
+        <div class="alert alert-warning" role="status">@message</div>
+    }
+
+    @if (purchases.Count == 0)
+    {
+        <p>No purchases in this period.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th>Store</th>
+                        <th>Buyer</th>
+                        <th>Payment</th>
+                        <th class="text-end">Price</th>
+                        <th class="text-end">Quantity</th>
+                        <th class="text-end">Total</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var purchase in purchases)
+                    {
+                        <tr @key="purchase.Id">
+                            <td class="text-nowrap">@FormatDate(purchase.Date)</td>
+                            <td>@purchase.ProductName</td>
+                            <td>@purchase.CategoryName</td>
+                            <td>@purchase.StoreName</td>
+                            <td>@purchase.BuyerEmail</td>
+                            <td>@purchase.PaymentMethod</td>
+                            <td class="text-end">@DecimalFormat.Money(purchase.Price)</td>
+                            <td class="text-end">@DecimalFormat.Quantity(purchase.Quantity)</td>
+                            <td class="text-end">@DecimalFormat.Money(purchase.LineTotal)</td>
+                            <td>@purchase.Notes</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @* The unrounded line totals are summed; only the sum is rounded, for display. *@
+        <p><strong>Total: @DecimalFormat.Money(purchases.Sum(p => p.LineTotal))</strong></p>
+    }
+}
+
+@code {
+    private const string DateFormat = "yyyy-MM-dd";
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    // Set by the purchase form when the service corrected the date. A string, not DateOnly?:
+    // a malformed DateOnly in the query would throw, while here it is just ignored.
+    [SupplyParameterFromQuery(Name = "correctedDate")]
+    private string? CorrectedDateText { get; set; }
+
+    private int userId;
+    private DateOnly? correctedDate;
+    private DateOnly? from;
+    private DateOnly? to;
+    private IReadOnlyList<PurchaseInfo>? purchases;
+    private string? message;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // The user id comes from the authentication state only, never from user input.
+        var authState = await AuthenticationStateTask;
+        userId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    }
+
+    protected override void OnParametersSet()
+    {
+        correctedDate = DateOnly.TryParseExact(
+            CorrectedDateText, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
+            ? date
+            : null;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        // JS interop works only after the first interactive render.
+        var today = DateOnly.ParseExact(
+            await JS.InvokeAsync<string>("familyBudget.getLocalDate"), DateFormat, CultureInfo.InvariantCulture);
+
+        var firstDay = new DateOnly(today.Year, today.Month, 1);
+        var lastDay = new DateOnly(today.Year, today.Month, DateTime.DaysInMonth(today.Year, today.Month));
+        from = firstDay;
+        to = lastDay;
+
+        purchases = await PurchaseService.GetForPeriodAsync(userId, firstDay, lastDay);
+        StateHasChanged();
+    }
+
+    private async Task ShowAsync()
+    {
+        if (busy)
+        {
+            return;
+        }
+
+        message = null;
+        if (from is not { } fromDate || to is not { } toDate)
+        {
+            message = "Choose both dates.";
+            return;
+        }
+
+        if (fromDate > toDate)
+        {
+            message = "“From” must not be later than “To”.";
+            return;
+        }
+
+        busy = true;
+        try
+        {
+            purchases = await PurchaseService.GetForPeriodAsync(userId, fromDate, toDate);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private static string FormatDate(DateOnly date) => date.ToString(DateFormat, CultureInfo.InvariantCulture);
+}

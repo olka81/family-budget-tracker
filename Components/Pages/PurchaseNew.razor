@@ -1,0 +1,433 @@
+@page "/purchases/new"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@using System.Globalization
+@using System.Security.Claims
+@using FamilyBudget.Models
+@using FamilyBudget.Services
+@inject PurchaseService PurchaseService
+@inject StoreService StoreService
+@inject ProductService ProductService
+@inject CategoryService CategoryService
+@inject FamilyGroupService GroupService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>New purchase</PageTitle>
+
+<h1>New purchase</h1>
+
+@if (!loaded)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    @if (formErrors.Count > 0)
+    {
+        <div class="alert alert-warning" role="alert">
+            @foreach (var error in formErrors)
+            {
+                <div>@error</div>
+            }
+        </div>
+    }
+
+    <div class="d-flex flex-wrap align-items-start gap-3 mb-3">
+        <div>
+            <label class="form-label mb-0" for="purchase-date">Date</label>
+            <input id="purchase-date" type="date" max="9999-12-31" class="form-control" @bind="date" />
+        </div>
+        <div>
+            <label class="form-label mb-0" for="purchase-store">Store</label>
+            <select id="purchase-store" class="form-select" @bind="storeChoice">
+                <option value="@NoStore">— no store —</option>
+                @foreach (var store in stores)
+                {
+                    <option @key="store.Id" value="@IdText(store.Id)">@store.Name</option>
+                }
+                <option value="@NewStore">+ New store…</option>
+            </select>
+            @if (storeChoice == NewStore)
+            {
+                <input class="form-control mt-1" placeholder="Store name" aria-label="Store name"
+                       @bind="newStoreName" @bind:event="oninput" />
+            }
+        </div>
+        <div>
+            <label class="form-label mb-0" for="purchase-buyer">Buyer</label>
+            <select id="purchase-buyer" class="form-select" @bind="buyerChoice">
+                @foreach (var member in members)
+                {
+                    <option @key="member.UserId" value="@IdText(member.UserId)">@member.Email</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="form-label mb-0" for="purchase-payment">Payment</label>
+            <select id="purchase-payment" class="form-select" @bind="paymentMethod">
+                <option value="@PaymentMethod.Card">Card</option>
+                <option value="@PaymentMethod.Cash">Cash</option>
+            </select>
+        </div>
+    </div>
+
+    <datalist id="known-products">
+        @foreach (var product in knownProducts.Values)
+        {
+            <option @key="product.Id" value="@product.Name"></option>
+        }
+    </datalist>
+
+    <div class="table-responsive">
+        <table class="table table-sm align-top">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Quantity</th>
+                    <th>Notes</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in rows)
+                {
+                    <tr @key="row">
+                        <td>
+                            <input class="form-control" list="known-products" autocomplete="off" aria-label="Product"
+                                   @bind="row.ProductName" @bind:event="oninput" />
+                            @foreach (var error in row.Errors)
+                            {
+                                <div class="text-danger small">@error</div>
+                            }
+                        </td>
+                        <td>
+                            @if (FindKnownProduct(row) is { } known)
+                            {
+                                <span class="form-control-plaintext">@CategoryNameOf(known)</span>
+                            }
+                            else
+                            {
+                                <select class="form-select" aria-label="Category" @bind="row.CategoryChoice">
+                                    <option value="">— no category —</option>
+                                    @foreach (var category in categories)
+                                    {
+                                        <option @key="category.Id" value="@IdText(category.Id)">@category.Label</option>
+                                    }
+                                </select>
+                            }
+                        </td>
+                        <td>
+                            <input class="form-control" autocomplete="off" aria-label="Price"
+                                   @bind="row.Price" @bind:event="oninput" />
+                        </td>
+                        <td>
+                            <input class="form-control" autocomplete="off" aria-label="Quantity"
+                                   @bind="row.Quantity" @bind:event="oninput" />
+                        </td>
+                        <td>
+                            <input class="form-control" autocomplete="off" aria-label="Notes"
+                                   @bind="row.Notes" @bind:event="oninput" />
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-danger" title="Remove item"
+                                    disabled="@(busy || rows.Count == 1)" @onclick="() => RemoveRow(row)">Remove</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <p><strong>Total: @RunningTotal()</strong></p>
+
+    <p>
+        <button class="btn btn-sm btn-outline-secondary" disabled="@busy" @onclick="AddRow">+ Item</button>
+    </p>
+
+    <p>
+        <button class="btn btn-primary" disabled="@busy" @onclick="SaveAsync">Save</button>
+        <a class="btn btn-secondary" href="purchases">Cancel</a>
+    </p>
+}
+
+@code {
+    private const string DateFormat = "yyyy-MM-dd";
+
+    // Values of the store <select> that are not store ids.
+    private const string NoStore = "";
+    private const string NewStore = "new";
+
+    // One form row. Text fields hold exactly what the user typed (null after a cleared input).
+    private sealed class ItemRow
+    {
+        public string? ProductName { get; set; }
+        public string? CategoryChoice { get; set; } = "";
+        public string? Price { get; set; }
+        public string? Quantity { get; set; } = "1";
+        public string? Notes { get; set; }
+        public List<string> Errors { get; } = [];
+
+        // The quantity has a default, so it does not count.
+        public bool IsEmpty =>
+            string.IsNullOrWhiteSpace(ProductName)
+            && string.IsNullOrWhiteSpace(Price)
+            && string.IsNullOrWhiteSpace(Notes);
+    }
+
+    // Name is the plain category name, Label is the name indented by depth.
+    private record CategoryOption(int Id, string Name, string Label);
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    private int userId;
+    private bool loaded;
+    private bool busy;
+
+    private IReadOnlyList<StoreInfo> stores = [];
+    private IReadOnlyList<GroupMember> members = [];
+    private IReadOnlyList<CategoryOption> categories = [];
+
+    // Key: the normalized name, as stored.
+    private Dictionary<string, ProductInfo> knownProducts = [];
+
+    private DateOnly? date;
+    private string? storeChoice = NoStore;
+    private string? newStoreName;
+    private string? buyerChoice;
+    private PaymentMethod paymentMethod = PaymentMethod.Card;
+
+    private readonly List<ItemRow> rows = [new()];
+    private readonly List<string> formErrors = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        // The user id comes from the authentication state only, never from user input.
+        var authState = await AuthenticationStateTask;
+        userId = int.Parse(authState.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        buyerChoice = IdText(userId);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        // JS interop works only after the first interactive render.
+        date = DateOnly.ParseExact(
+            await JS.InvokeAsync<string>("familyBudget.getLocalDate"), DateFormat, CultureInfo.InvariantCulture);
+
+        stores = await StoreService.GetAllAsync(userId);
+        members = await GroupService.GetMembersAsync(userId);
+        knownProducts = (await ProductService.GetAllAsync(userId)).ToDictionary(p => p.Name);
+
+        var options = new List<CategoryOption>();
+        Flatten(await CategoryService.GetTreeAsync(userId), 0, options);
+        categories = options;
+
+        loaded = true;
+        StateHasChanged();
+    }
+
+    private static void Flatten(IReadOnlyList<CategoryNode> nodes, int depth, List<CategoryOption> result)
+    {
+        foreach (var node in nodes)
+        {
+            // Non-breaking spaces: ordinary leading spaces are trimmed inside <option>.
+            result.Add(new CategoryOption(node.Id, node.Name, new string(' ', depth * 4) + node.Name));
+            Flatten(node.Children, depth + 1, result);
+        }
+    }
+
+    private ProductInfo? FindKnownProduct(ItemRow row) =>
+        knownProducts.GetValueOrDefault(NameNormalizer.Normalize(row.ProductName));
+
+    private string CategoryNameOf(ProductInfo product) =>
+        categories.FirstOrDefault(c => c.Id == product.CategoryId)?.Name ?? "no category";
+
+    private void AddRow()
+    {
+        if (!busy)
+        {
+            rows.Add(new ItemRow());
+        }
+    }
+
+    // The last remaining row cannot be removed.
+    private void RemoveRow(ItemRow row)
+    {
+        if (!busy && rows.Count > 1)
+        {
+            rows.Remove(row);
+        }
+    }
+
+    // Display only: the rows whose price and quantity both parse.
+    private string RunningTotal()
+    {
+        try
+        {
+            var total = 0m;
+            foreach (var row in rows)
+            {
+                if (DecimalInput.TryParse(row.Price, out var price)
+                    && DecimalInput.TryParse(row.Quantity, out var quantity))
+                {
+                    total += price * quantity;
+                }
+            }
+
+            return DecimalFormat.Money(total);
+        }
+        catch (OverflowException)
+        {
+            // Absurdly long numbers; the service rejects them on save.
+            return "—";
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        // A second click can arrive before the browser has disabled the button.
+        if (busy)
+        {
+            return;
+        }
+
+        busy = true;
+        var leavingPage = false;
+        try
+        {
+            leavingPage = await TrySaveAsync();
+        }
+        finally
+        {
+            // After a successful save the form stays busy until the navigation finishes,
+            // otherwise another click would save the same items again.
+            busy = leavingPage;
+        }
+    }
+
+    // Returns true when the items were saved and the navigation to the list has started.
+    private async Task<bool> TrySaveAsync()
+    {
+        formErrors.Clear();
+        foreach (var row in rows)
+        {
+            row.Errors.Clear();
+        }
+
+        // Item indexes reported by the service are positions in this list.
+        var sentRows = rows.Where(r => !r.IsEmpty).ToList();
+        if (sentRows.Count == 0)
+        {
+            formErrors.Add(MessageFor(PurchaseError.NoItems));
+            return false;
+        }
+
+        var items = ParseItems(sentRows);
+        if (items is null)
+        {
+            return false;
+        }
+
+        if (date is not { } purchaseDate)
+        {
+            formErrors.Add("Choose a date.");
+            return false;
+        }
+
+        if (storeChoice == NewStore && !await CreateStoreAsync())
+        {
+            return false;
+        }
+
+        var header = new PurchaseHeader(purchaseDate, ParseId(storeChoice), ParseId(buyerChoice), paymentMethod);
+        var result = await PurchaseService.AddItemsAsync(userId, header, items);
+        if (result.Status != PurchaseStatus.Ok)
+        {
+            formErrors.AddRange(result.Errors.Select(MessageFor));
+            foreach (var itemError in result.ItemErrors)
+            {
+                sentRows[itemError.Index].Errors.Add(MessageFor(itemError.Error));
+            }
+
+            return false;
+        }
+
+        var query = result.DateCorrected
+            ? $"?correctedDate={result.SavedDate!.Value.ToString(DateFormat, CultureInfo.InvariantCulture)}"
+            : "";
+        Navigation.NavigateTo($"/purchases{query}");
+        return true;
+    }
+
+    // Returns null if any number does not parse; the errors are then shown next to the rows.
+    // Parsed values are passed on as they are, never rounded.
+    private List<PurchaseItem>? ParseItems(List<ItemRow> sentRows)
+    {
+        var items = new List<PurchaseItem>();
+        var valid = true;
+
+        foreach (var row in sentRows)
+        {
+            if (!DecimalInput.TryParse(row.Price, out var price))
+            {
+                row.Errors.Add("Invalid price");
+                valid = false;
+            }
+
+            if (!DecimalInput.TryParse(row.Quantity, out var quantity))
+            {
+                row.Errors.Add("Invalid quantity");
+                valid = false;
+            }
+
+            // The category of a known product is only shown, never sent.
+            var categoryId = FindKnownProduct(row) is null ? ParseId(row.CategoryChoice) : null;
+            items.Add(new PurchaseItem(row.ProductName, categoryId, price, quantity, row.Notes));
+        }
+
+        return valid ? items : null;
+    }
+
+    // Creates the new store and selects it, so that another "Save" does not create it again.
+    private async Task<bool> CreateStoreAsync()
+    {
+        var created = await StoreService.CreateAsync(userId, newStoreName);
+        if (created.Status != StoreStatus.Ok)
+        {
+            formErrors.Add("Store name must not be empty.");
+            return false;
+        }
+
+        stores = await StoreService.GetAllAsync(userId);
+        storeChoice = IdText(created.StoreId!.Value);
+        newStoreName = null;
+        return true;
+    }
+
+    private static string IdText(int id) => id.ToString(CultureInfo.InvariantCulture);
+
+    private static int? ParseId(string? choice) =>
+        int.TryParse(choice, NumberStyles.None, CultureInfo.InvariantCulture, out var id) ? id : null;
+
+    private static string MessageFor(PurchaseError error) => error switch
+    {
+        PurchaseError.NoItems => "Add at least one item.",
+        PurchaseError.EmptyProductName => "Enter a product name.",
+        PurchaseError.InvalidPrice => "Price must have at most 2 decimal places and at most 8 digits before them.",
+        PurchaseError.InvalidQuantity =>
+            "Quantity must be greater than 0, with at most 3 decimal places and at most 7 digits before them.",
+        PurchaseError.CategoryNotFound => "This category no longer exists. Choose another one.",
+        PurchaseError.StoreNotFound => "This store no longer exists. Choose another one.",
+        PurchaseError.BuyerNotInGroup => "This buyer is no longer a member of your group. Choose another one.",
+        PurchaseError.InvalidPaymentMethod => "Choose a payment method.",
+        _ => "The purchase could not be saved."
+    };
+}

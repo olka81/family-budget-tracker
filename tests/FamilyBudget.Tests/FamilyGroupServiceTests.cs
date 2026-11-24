@@ -70,6 +70,29 @@ public class FamilyGroupServiceTests(PostgresFixture fixture) : IClassFixture<Po
         Assert.Equal(expected, info.MemberEmails.Order(StringComparer.Ordinal));
     }
 
+    [Fact]
+    public async Task GetMembers_ReturnsOwnGroupMembersWithIds_OrderedByEmail()
+    {
+        var group = await _data.CreateGroupAsync("Group with three members");
+        var otherGroup = await _data.CreateGroupAsync("Other group");
+        var suffix = $"{Guid.NewGuid():N}@example.com";
+        // Created out of order, so neither the ids nor the insertion order match the email order.
+        var third = await _data.CreateUserAsync(group.Id, $"c-{suffix}");
+        var first = await _data.CreateUserAsync(group.Id, $"a-{suffix}");
+        var second = await _data.CreateUserAsync(group.Id, $"b-{suffix}");
+        await _data.CreateUserAsync(otherGroup.Id);
+
+        var members = await _service.GetMembersAsync(third.Id);
+
+        Assert.Equal(
+            [
+                new GroupMember(first.Id, first.Email!),
+                new GroupMember(second.Id, second.Email!),
+                new GroupMember(third.Id, third.Email!)
+            ],
+            members);
+    }
+
     // ---------- Preview ----------
 
     [Fact]

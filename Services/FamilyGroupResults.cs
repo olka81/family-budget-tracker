@@ -12,3 +12,5 @@ public record LeaveResult(LeaveStatus Status, Guid? OldGroupInviteToken);
 // if Ok, Token has a value
 
 public record GroupInfo(string Name, IReadOnlyList<string> MemberEmails);
+
+public record GroupMember(int UserId, string Email);

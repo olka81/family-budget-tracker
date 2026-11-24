@@ -22,11 +22,12 @@ internal sealed class TestData(IDbContextFactory<FamilyBudgetDbContext> dbFactor
     }
 
     // UserManager is not needed: a plain row with a unique email is enough for the service.
-    public async Task<ApplicationUser> CreateUserAsync(int groupId)
+    // Pass an email only when its value matters (it must be unique in the whole database).
+    public async Task<ApplicationUser> CreateUserAsync(int groupId, string? email = null)
     {
         await using var db = await dbFactory.CreateDbContextAsync();
 
-        var email = $"user-{Guid.NewGuid():N}@example.com";
+        email ??= $"user-{Guid.NewGuid():N}@example.com";
         var user = new ApplicationUser
         {
             UserName = email,
