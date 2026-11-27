@@ -5,7 +5,8 @@
 - Разово, если браузер ругается на сертификат: `dotnet dev-certs https --trust`
 
 ## Docker / локальный Postgres
-- Поднять локальную БД: `docker run --name familybudget-db -e POSTGRES_PASSWORD=devpassword -e POSTGRES_DB=familybudget -p 5432:5432 -d postgres:18`
+- Создать локальную БД (только самый первый раз): `docker run --name familybudget-db -e POSTGRES_PASSWORD=devpassword -e POSTGRES_DB=familybudget -p 5432:5432 -d postgres:18`
+- Запустить уже созданный контейнер (все последующие разы): `docker start familybudget-db`. Повторный `docker run` даст ошибку «container name is already in use»
 - Проверить, что контейнер жив: `docker ps` (не `docker --version` — та показывает версию, даже если сам Docker Desktop не запущен)
 - Посмотреть таблицы: `docker exec -it familybudget-db psql -U postgres -d familybudget -c "\dt"` (выход из постраничного просмотра — клавиша `q`)
 
